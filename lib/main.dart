@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'state/app_state.dart';
 
-void main() {
-  runApp(AppScope(notifier: AppState(), child: const DaladalaApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final state = AppState();
+  await state.loadSavedAccount();
+  runApp(AppScope(notifier: state, child: const DaladalaApp()));
 }
 
 class DaladalaApp extends StatelessWidget {
@@ -19,7 +22,7 @@ class DaladalaApp extends StatelessWidget {
       builder: (context, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Daladala',
+          title: 'Bus Pay',
           themeMode: app.themeMode,
           builder: (context, child) {
             return MediaQuery(

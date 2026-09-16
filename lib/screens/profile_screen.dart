@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../auth/login_id.dart';
 import '../l10n/strings.dart';
 import '../state/app_state.dart';
 
@@ -21,10 +22,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.didChangeDependencies();
     if (_loaded) return;
     _loaded = true;
-    final p = AppScope.of(context).profile;
-    name.text = p.name;
-    email.text = p.email;
-    phone.text = p.phone;
+    final app = AppScope.of(context);
+    name.text = app.displayName;
+    email.text = app.displayEmail;
+    phone.text = app.displayPhone;
   }
 
   @override
@@ -39,8 +40,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final s = S(app.language);
-    final p = app.profile;
-    final initials = _initials(p.name);
+    final initials = _initials(app.displayName);
+    final idLabel = app.currentRole == UserRole.agent
+        ? (s.isSw ? 'Kitambulisho cha wakala' : 'Agent ID')
+        : s.conductorId;
+    final nameLabel =
+        app.currentRole == UserRole.agent ? s.agent : s.conductor;
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -73,7 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 8),
         Center(
           child: Text(
-            p.id,
+            app.displayId,
             style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
           ),
         ),
@@ -81,7 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         TextField(
           controller: name,
           decoration: InputDecoration(
-            labelText: s.conductor,
+            labelText: nameLabel,
             prefixIcon: const Icon(Icons.badge_outlined),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           ),
@@ -89,9 +94,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 14),
         TextFormField(
           enabled: false,
-          initialValue: p.id,
+          initialValue: app.displayId,
           decoration: InputDecoration(
-            labelText: s.conductorId,
+            labelText: idLabel,
             prefixIcon: const Icon(Icons.fingerprint),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           ),

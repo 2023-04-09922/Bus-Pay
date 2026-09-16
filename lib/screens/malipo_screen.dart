@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
 import '../state/app_state.dart';
+import '../widgets/wallet_balance.dart';
 import 'nfc_scanner_screen.dart';
 
 class MalipoScreen extends StatefulWidget {
@@ -97,9 +98,10 @@ class _MalipoScreenState extends State<MalipoScreen> {
                   style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  s.tzs(app.walletBalance),
-                  style: const TextStyle(
+                const WalletBalanceText(
+                  showToggle: true,
+                  toggleColor: Colors.white,
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 32,
                     fontWeight: FontWeight.bold,

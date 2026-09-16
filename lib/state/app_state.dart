@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../auth/account_store.dart';
+import '../auth/login_id.dart';
+
 class Transaction {
   Transaction({
     required this.passengerName,
@@ -22,18 +25,30 @@ enum AppLanguage { sw, en }
 
 enum DisplaySize { compact, normal, large }
 
-class ConductorProfile {
-  ConductorProfile({
-    required this.name,
-    required this.id,
-    required this.email,
+class UserAccount {
+  UserAccount({
+    required this.username,
+    required this.password,
+    required this.role,
+    required this.firstName,
+    required this.lastName,
     required this.phone,
+    this.nida = '',
+    this.email = '',
+    this.tillNumber = '',
   });
 
-  String name;
-  String id;
-  String email;
+  String username;
+  String password;
+  UserRole role;
+  String firstName;
+  String lastName;
   String phone;
+  String nida;
+  String email;
+  String tillNumber;
+
+  String get fullName => '$firstName $lastName'.trim();
 }
 
 class AppState extends ChangeNotifier {
@@ -42,13 +57,11 @@ class AppState extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.light;
   AppLanguage language = AppLanguage.sw;
   DisplaySize displaySize = DisplaySize.normal;
-
-  ConductorProfile profile = ConductorProfile(
-    name: 'John Mushi',
-    id: 'DLD-C001',
-    email: 'john.mushi@daladala.co.tz',
-    phone: '+255 712 345 678',
-  );
+  bool walletHidden = true;
+  UserRole? currentRole;
+  UserAccount? currentUser;
+  String? authToken;
+  String? hiddenUsername;
 
   double get textScale => switch (displaySize) {
         DisplaySize.compact => 0.90,
@@ -56,13 +69,77 @@ class AppState extends ChangeNotifier {
         DisplaySize.large => 1.15,
       };
 
-  Locale get locale =>
-      language == AppLanguage.sw ? const Locale('sw') : const Locale('en');
+  String get displayName => currentUser?.fullName ?? '';
+  String get displayId => currentUser?.phone ?? '';
+  String get displayPhone => currentUser?.phone ?? '';
+  String get displayEmail => currentUser?.email ?? '';
+  String get agentTill => currentUser?.tillNumber ?? '0000-0000';
 
-  void applyLoginId(String conductorId) {
-    if (conductorId.trim().isNotEmpty) {
-      profile.id = conductorId.trim();
+  void applyRemoteLogin(Map<String, dynamic> data) {
+    final rawUser = data['user'];
+    final user = rawUser is Map
+        ? Map<String, dynamic>.from(rawUser)
+        : Map<String, dynamic>.from(data);
+
+    authToken = (data['token'] ?? data['accessToken'] ?? user['token'])
+        ?.toString();
+
+    final phone = (user['phone'] ?? user['mobile'] ?? '').toString();
+    final username = (user['username'] ?? hiddenUsername ?? '').toString();
+    final roleValue =
+        (user['role'] ?? data['role'] ?? '').toString().toLowerCase();
+    final role = roleValue.contains('agent')
+        ? UserRole.agent
+        : (LoginId.roleOf(username) ?? UserRole.conductor);
+
+    final names = (user['name'] ?? user['fullName'] ?? '').toString().trim();
+    var first = (user['firstName'] ?? '').toString().trim();
+    var last = (user['lastName'] ?? '').toString().trim();
+    if (first.isEmpty && names.isNotEmpty) {
+      final parts = names.split(RegExp(r'\s+'));
+      first = parts.first;
+      last = parts.length > 1 ? parts.sublist(1).join(' ') : '';
     }
+
+    currentUser = UserAccount(
+      username: username.isEmpty ? phone : username,
+      password: '',
+      role: role,
+      firstName: first.isEmpty ? 'Conductor' : first,
+      lastName: last,
+      phone: phone,
+      nida: (user['nida'] ?? '').toString(),
+      email: (user['email'] ?? '').toString(),
+      tillNumber: (user['tillNumber'] ?? user['till'] ?? '').toString(),
+    );
+    currentRole = role;
+    if (username.isNotEmpty) {
+      hiddenUsername = username;
+      AccountStore.saveUsername(username);
+    }
+    notifyListeners();
+  }
+
+  Future<void> loadSavedAccount() async {
+    hiddenUsername = await AccountStore.readUsername();
+    notifyListeners();
+  }
+
+  Future<void> rememberAccount(String username) async {
+    hiddenUsername = username;
+    await AccountStore.saveUsername(username);
+    notifyListeners();
+  }
+
+  void logout() {
+    currentUser = null;
+    currentRole = null;
+    authToken = null;
+    notifyListeners();
+  }
+
+  void toggleWalletHidden() {
+    walletHidden = !walletHidden;
     notifyListeners();
   }
 
@@ -143,10 +220,28 @@ class AppState extends ChangeNotifier {
     String? email,
     String? phone,
   }) {
-    if (name != null) profile.name = name;
-    if (email != null) profile.email = email;
-    if (phone != null) profile.phone = phone;
+    final user = currentUser;
+    if (user == null) return;
+    if (name != null) {
+      final parts = name.trim().split(RegExp(r'\s+'));
+      user.firstName = parts.isEmpty ? user.firstName : parts.first;
+      user.lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+    }
+    if (email != null) user.email = email;
+    if (phone != null) user.phone = phone;
     notifyListeners();
+  }
+
+  String changePassword({
+    required String newPassword,
+    required String confirmPassword,
+  }) {
+    final user = currentUser;
+    if (user == null) return 'no_user';
+    if (newPassword != confirmPassword) return 'mismatch';
+    user.password = newPassword;
+    notifyListeners();
+    return 'ok';
   }
 }
 

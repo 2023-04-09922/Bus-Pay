@@ -15,12 +15,16 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   nfc_manager: ^4.2.1
+  camera: ^0.12.1
+  http: ^1.6.0
+  flutter_secure_storage: ^9.2.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   flutter_launcher_icons: ^0.14.4
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

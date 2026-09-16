@@ -9,6 +9,7 @@ import 'screens/toa_pesa_screen.dart';
 import 'screens/tuma_pesa_screen.dart';
 import 'state/app_state.dart';
 import 'widgets/app_drawer.dart';
+import 'widgets/app_logo.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -44,9 +45,17 @@ class _HomeShellState extends State<HomeShell> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          titles[index],
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        title: Row(
+          children: [
+            const AppLogo(size: 32, radius: 8),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                titles[index],
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
       ),
       drawer: AppDrawer(

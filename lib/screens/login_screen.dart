@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../auth/password_rule.dart';
 import '../home_shell.dart';
 import '../l10n/strings.dart';
+import '../services/api_service.dart';
 import '../state/app_state.dart';
+import '../widgets/app_logo.dart';
+import '../widgets/pin_boxes.dart';
+import '../widgets/pin_error_shake.dart';
+import 'agent_login_screen.dart';
+import 'conductor_forgot_pin_screen.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,126 +20,186 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController conductorIdController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  bool obscurePassword = true;
+  String pin = '';
+  bool busy = false;
+  bool wrongPin = false;
+  int wrongPulse = 0;
 
-  @override
-  void dispose() {
-    conductorIdController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
-
-  void login() {
+  Future<void> login() async {
     final s = S(AppScope.of(context).language);
-    if (conductorIdController.text.isEmpty || passwordController.text.isEmpty) {
+    if (!PasswordRule.isValid(pin)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.fillAll)),
+        SnackBar(content: Text(s.badPinFormat)),
       );
       return;
     }
 
-    AppScope.of(context).applyLoginId(conductorIdController.text);
+    final app = AppScope.of(context);
+    final username = app.hiddenUsername?.trim() ?? '';
+    if (username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.noAccount)),
+      );
+      return;
+    }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeShell()),
-    );
+    setState(() => busy = true);
+    try {
+      final response = await ApiService.login(
+        username: username,
+        pin: pin,
+      );
+      if (!mounted) return;
+      app.applyRemoteLogin(response);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeShell()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final status = e is ApiException ? e.statusCode : null;
+      final raw = e.toString().replaceFirst('Exception: ', '');
+      if (status == 401) {
+        setState(() {
+          pin = '';
+          wrongPin = true;
+          wrongPulse++;
+        });
+        return;
+      }
+      final message = status == 404
+          ? s.noAccount
+          : status == 429
+              ? (raw.toLowerCase().contains('pin')
+                  ? s.pinLocked
+                  : s.tooManyRequests)
+              : (raw.contains('did not respond') ||
+                      raw.contains('TimeoutException') ||
+                      raw.contains('Could not reach')
+                  ? s.connectionTimeout
+                  : raw);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = S(AppScope.of(context).language);
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(28),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    borderRadius: BorderRadius.circular(24),
+                const AppLogo(size: 96),
+                const SizedBox(height: 20),
+                Text(
+                  s.appName,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: const Icon(
-                    Icons.directions_bus,
-                    size: 52,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'DALADALA',
-                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 const Text(
                   'Mfumo wa Malipo ya Usafiri',
                   style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
-                const SizedBox(height: 45),
-                TextField(
-                  controller: conductorIdController,
-                  decoration: InputDecoration(
-                    labelText: 'Conductor ID',
-                    hintText: 'Mfano: DLD-C001',
-                    prefixIcon: const Icon(Icons.person),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                const SizedBox(height: 36),
+                PinBoxes(
+                  key: ValueKey('login-pin-$wrongPulse'),
+                  value: pin,
+                  label: s.enterPin,
+                  autofocus: true,
+                  onChanged: (value) => setState(() {
+                    pin = value;
+                    if (wrongPin) wrongPin = false;
+                  }),
+                ),
+                const SizedBox(height: 10),
+                PinErrorShake(
+                  visible: wrongPin,
+                  pulse: wrongPulse,
+                  message: s.pinIncorrect,
+                ),
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const ConductorForgotPinScreen(),
+                            ),
+                          );
+                        },
+                  child: Text(
+                    s.forgotPin,
+                    style: const TextStyle(fontSize: 13),
                   ),
                 ),
-                const SizedBox(height: 18),
-                TextField(
-                  controller: passwordController,
-                  obscureText: obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() => obscurePassword = !obscurePassword);
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: login,
+                    onPressed: busy ? null : login,
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text(
-                      'INGIA',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: busy
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(
+                            'INGIA',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Conductor App',
-                  style: TextStyle(color: Colors.grey),
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SignupScreen(),
+                            ),
+                          );
+                        },
+                  child: Text(s.signUp),
+                ),
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AgentLoginScreen(),
+                            ),
+                          );
+                        },
+                  child: Text(
+                    s.loginAsAgent,
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
                 ),
               ],
             ),
