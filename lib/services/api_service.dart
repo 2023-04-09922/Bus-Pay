@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../core/constants/app_config.dart';
+
 class ApiException implements Exception {
   ApiException(this.message, {this.statusCode});
 
@@ -15,42 +17,39 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static const List<String> _hosts = [
-    'http://127.0.0.1:3000',
-    'http://10.0.2.2:3000',
-    'http://192.168.20.93:3000',
-    'http://192.168.137.1:3000',
-    'http://192.168.5.1:3000',
-  ];
-
-  static const _probeTimeout = Duration(milliseconds: 700);
-  static const _requestTimeout = Duration(seconds: 4);
+  static const _discoverTimeout = Duration(milliseconds: 900);
+  static const _requestTimeout = Duration(milliseconds: 4500);
   static final _client = http.Client();
-  static String? _baseUrl;
+  static String _baseUrl = AppConfig.apiHosts.first;
+  static bool _ready = false;
 
-  static Future<String?> _probe(String host) async {
+  static Future<void> warmup() async {
     try {
-      final response = await _client
-          .get(
-            Uri.parse('$host/health'),
-            headers: const {'Accept': 'application/json'},
-          )
-          .timeout(_probeTimeout);
-      return response.statusCode == 200 ? host : null;
-    } catch (_) {
-      return null;
-    }
+      await _discover();
+    } catch (_) {}
   }
 
-  static Future<String> _base() async {
-    if (_baseUrl != null) return _baseUrl!;
-
-    final probes = _hosts.map(_probe).toList();
-    final results = await Future.wait(probes);
-    for (var i = 0; i < _hosts.length; i++) {
-      if (results[i] != null) {
-        _baseUrl = results[i];
-        return _baseUrl!;
+  static Future<void> _discover({bool force = false}) async {
+    if (_ready && !force) return;
+    _ready = false;
+    final hits = await Future.wait(
+      AppConfig.apiHosts.map((host) async {
+        try {
+          final response = await _client
+              .get(Uri.parse('$host/health'))
+              .timeout(_discoverTimeout);
+          if (response.statusCode >= 200 && response.statusCode < 500) {
+            return host;
+          }
+        } catch (_) {}
+        return null;
+      }),
+    );
+    for (final host in AppConfig.apiHosts) {
+      if (hits.contains(host)) {
+        _baseUrl = host;
+        _ready = true;
+        return;
       }
     }
     throw ApiException('Server did not respond');
@@ -76,6 +75,39 @@ class ApiService {
     });
   }
 
+  static Future<Map<String, dynamic>> adminLogin({
+    required String email,
+    required String password,
+  }) {
+    return _post('/auth/admin/login', {
+      'email': email,
+      'password': password,
+    });
+  }
+
+  static Future<Map<String, dynamic>> createWakala({
+    required String token,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+    required String nida,
+    required String password,
+  }) {
+    return _post(
+      '/auth/admin/wakala',
+      {
+        'firstName': firstName.trim(),
+        'lastName': lastName.trim(),
+        'email': email.trim(),
+        'phone': phone.trim(),
+        'nida': nida.trim(),
+        'password': password,
+      },
+      token: token,
+    );
+  }
+
   static Future<Map<String, dynamic>> forgotAgentPassword({
     required String email,
   }) {
@@ -96,6 +128,19 @@ class ApiService {
       'password': password,
       'confirmPassword': confirmPassword,
     });
+  }
+
+  static Future<Map<String, dynamic>> checkAvailability({
+    String? phone,
+    String? nida,
+  }) {
+    final q = <String, String>{};
+    if (phone != null && phone.trim().isNotEmpty) q['phone'] = phone.trim();
+    if (nida != null && nida.trim().isNotEmpty) q['nida'] = nida.trim();
+    final query = q.entries
+        .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return _get('/auth/check?$query');
   }
 
   static Future<Map<String, dynamic>> register({
@@ -176,41 +221,199 @@ class ApiService {
     });
   }
 
+  static Future<Map<String, dynamic>> issueCard({
+    required String token,
+    required String firstName,
+    required String lastName,
+    required String phone,
+    String? nida,
+    String? serialNumber,
+    String? nfcUid,
+    int initialLoad = 0,
+  }) {
+    return _post(
+      '/platform/cards',
+      {
+        'firstName': firstName.trim(),
+        'lastName': lastName.trim(),
+        'phone': phone.trim(),
+        if (nida != null && nida.trim().isNotEmpty) 'nida': nida.trim(),
+        if (serialNumber != null && serialNumber.trim().isNotEmpty)
+          'serialNumber': serialNumber.trim(),
+        if (nfcUid != null && nfcUid.trim().isNotEmpty) 'nfcUid': nfcUid.trim(),
+        'initialLoad': initialLoad,
+      },
+      token: token,
+    );
+  }
+
+  static Future<Map<String, dynamic>> getTransactions({
+    required String token,
+  }) {
+    return _get('/platform/transactions', token: token);
+  }
+
+  static Future<Map<String, dynamic>> tapPay({
+    required String token,
+    required int amount,
+    String? serialNumber,
+    String? nfcUid,
+    String serviceType = 'TRANSPORT',
+    String merchantCode = 'DLD-PLATFORM',
+  }) {
+    return _post(
+      '/platform/payments/tap',
+      {
+        'amount': amount,
+        'serviceType': serviceType,
+        'merchantCode': merchantCode,
+        'serialNumber': ?serialNumber,
+        'nfcUid': ?nfcUid,
+      },
+      token: token,
+    );
+  }
+
+  static Future<Map<String, dynamic>> lookupCard({
+    required String token,
+    String? serialNumber,
+    String? nfcUid,
+  }) {
+    if (nfcUid != null && nfcUid.trim().isNotEmpty) {
+      return _get(
+        '/platform/cards/uid/${Uri.encodeComponent(nfcUid.trim())}',
+        token: token,
+      );
+    }
+    if (serialNumber == null || serialNumber.trim().isEmpty) {
+      throw ApiException('serialNumber or nfcUid is required');
+    }
+    return _get(
+      '/platform/cards/${Uri.encodeComponent(serialNumber.trim())}',
+      token: token,
+    );
+  }
+
+  static Future<Map<String, dynamic>> renewCard({
+    required String token,
+    required String serialNumber,
+    String? nfcUid,
+    String? firstName,
+    String? lastName,
+    String? phone,
+    int amount = 0,
+  }) {
+    return _post(
+      '/platform/cards/${Uri.encodeComponent(serialNumber.trim())}/renew',
+      {
+        if (nfcUid != null && nfcUid.trim().isNotEmpty) 'nfcUid': nfcUid.trim(),
+        if (firstName != null && firstName.trim().isNotEmpty)
+          'firstName': firstName.trim(),
+        if (lastName != null && lastName.trim().isNotEmpty)
+          'lastName': lastName.trim(),
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+        'amount': amount,
+      },
+      token: token,
+    );
+  }
+
+  static Future<Map<String, dynamic>> freezeCard({
+    required String token,
+    required String serialNumber,
+  }) {
+    return _post(
+      '/platform/cards/${Uri.encodeComponent(serialNumber.trim())}/freeze',
+      const {},
+      token: token,
+    );
+  }
+
+  static Future<Map<String, dynamic>> topUpWallet({
+    required String token,
+    required int amount,
+    String? serialNumber,
+    String? phone,
+  }) {
+    return _post(
+      '/platform/wallets/topup',
+      {
+        'amount': amount,
+        'serialNumber': ?serialNumber,
+        'phone': ?phone,
+      },
+      token: token,
+    );
+  }
+
+  static Future<http.Response> _send(
+    Future<http.Response> Function(String base) run,
+  ) async {
+    await _discover();
+    try {
+      return await run(_baseUrl).timeout(_requestTimeout);
+    } on TimeoutException {
+      _ready = false;
+    } on SocketException {
+      _ready = false;
+    } on HttpException {
+      _ready = false;
+    } on http.ClientException {
+      _ready = false;
+    }
+    await _discover(force: true);
+    try {
+      return await run(_baseUrl).timeout(_requestTimeout);
+    } on TimeoutException {
+      throw ApiException('Server did not respond', statusCode: 408);
+    } on SocketException {
+      throw ApiException('Server did not respond');
+    } on HttpException {
+      throw ApiException('Server did not respond');
+    } on http.ClientException {
+      throw ApiException('Server did not respond');
+    }
+  }
+
+  static Future<Map<String, dynamic>> _get(
+    String path, {
+    String? token,
+  }) async {
+    final headers = <String, String>{
+      'Accept': 'application/json',
+    };
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final response = await _send(
+      (base) => _client.get(Uri.parse('$base$path'), headers: headers),
+    );
+    return _decode(response);
+  }
+
   static Future<Map<String, dynamic>> _post(
     String path,
     Map<String, dynamic> body, {
     String? token,
   }) async {
-    late final http.Response response;
-    try {
-      final headers = <String, String>{
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
-      if (token != null && token.isNotEmpty) {
-        headers['Authorization'] = 'Bearer $token';
-      }
-      final base = await _base();
-      response = await _client
-          .post(
-            Uri.parse('$base$path'),
-            headers: headers,
-            body: jsonEncode(body),
-          )
-          .timeout(_requestTimeout);
-    } on ApiException {
-      rethrow;
-    } on SocketException {
-      _baseUrl = null;
-      throw ApiException('Server did not respond');
-    } on HttpException {
-      _baseUrl = null;
-      throw ApiException('Server did not respond');
-    } on TimeoutException {
-      _baseUrl = null;
-      throw ApiException('Server did not respond');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
     }
+    final response = await _send(
+      (base) => _client.post(
+        Uri.parse('$base$path'),
+        headers: headers,
+        body: jsonEncode(body),
+      ),
+    );
+    return _decode(response);
+  }
 
+  static Map<String, dynamic> _decode(http.Response response) {
     Map<String, dynamic> data = {};
     try {
       if (response.body.isNotEmpty) {

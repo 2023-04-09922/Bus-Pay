@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'core/di/injection.dart';
 import 'screens/login_screen.dart';
+import 'services/api_service.dart';
 import 'state/app_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Injection.init();
   final state = AppState();
-  await state.loadSavedAccount();
+  await Future.wait([
+    state.loadSavedAccount(),
+    ApiService.warmup(),
+  ]);
   runApp(AppScope(notifier: state, child: const DaladalaApp()));
 }
 

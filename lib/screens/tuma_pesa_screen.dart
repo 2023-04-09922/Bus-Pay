@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../auth/money_amount.dart';
 import '../l10n/strings.dart';
 import '../state/app_state.dart';
 
@@ -27,7 +28,7 @@ class _TumaPesaScreenState extends State<TumaPesaScreen> {
   void submit() {
     final app = AppScope.of(context);
     final s = S(app.language);
-    final amount = int.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
+    final amount = MoneyAmount.parse(amountController.text);
 
     if (phoneController.text.isEmpty || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -99,6 +100,7 @@ class _TumaPesaScreenState extends State<TumaPesaScreen> {
         TextField(
           controller: amountController,
           keyboardType: TextInputType.number,
+          inputFormatters: const [MoneyFormatter()],
           decoration: InputDecoration(
             labelText: s.amount,
             prefixIcon: const Icon(Icons.payments),

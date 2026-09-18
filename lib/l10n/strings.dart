@@ -39,27 +39,58 @@ class S {
   String get agentLater => isSw
       ? 'Taarifa zaidi za wakala zitaongezwa baadaye. Akaunti ya majaribio imeundwa.'
       : 'More agent fields will be added later. A trial account was created.';
-  String get sajiliCard => isSw ? 'Sajili card mpya' : 'Register new card';
+  String get sajiliCard => isSw ? 'Sajili card' : 'Register card';
+  String get sajiliCardHint =>
+      isSw ? 'Andika kadi mpya na salio la kwanza' : 'Issue a new card with first load';
+  String get renewCard => isSw ? 'Huisha card' : 'Renew card';
+  String get renewCardHint =>
+      isSw ? 'Huisha UID au taarifa za kadi' : 'Refresh UID or card details';
+  String get topUpCard => isSw ? 'Ongeza salio' : 'Top up card';
+  String get topUpCardHint =>
+      isSw ? 'Weka pesa kwenye kadi' : 'Add money to a card';
+  String get cardRenewed => isSw ? 'Card imehuishwa' : 'Card renewed';
+  String get topUpOk => isSw ? 'Salio limeongezwa' : 'Card topped up';
+  String get amountRequired =>
+      isSw ? 'Weka kiasi cha kuongeza kwenye kadi' : 'Enter the amount to add to the card';
+  String get cardRequired =>
+      isSw ? 'Weka namba ya kadi iliyosajiliwa' : 'Enter a registered card number';
+  String get currentBalance => isSw ? 'Salio la sasa' : 'Current balance';
+  String get newBalance => isSw ? 'Salio jipya' : 'New balance';
+  String get amountAdded => isSw ? 'Kiasi kilichoongezwa' : 'Amount added';
+  String get cardServices => isSw ? 'Huduma za kadi' : 'Card services';
+  String get wakalaDesk => isSw ? 'Dawati la wakala' : 'Agent desk';
   String get huishaCard => isSw ? 'Huisha card' : 'Deactivate card';
   String get msaada => isSw ? 'Msaada' : 'Help';
   String get jihudumie => isSw ? 'Jihudumie' : 'Self service';
   String get loginAsAgent => isSw ? 'Ingia kama wakala' : 'Sign in as agent';
+  String get adminLogin => isSw ? 'Ingia kama admin' : 'Sign in as admin';
+  String get adminLoginHint => isSw
+      ? 'Admin pekee anaweza kuunda akaunti ya wakala.'
+      : 'Only Admin can create a Wakala account.';
+  String get createWakala => isSw ? 'Unda wakala' : 'Create Wakala';
+  String get createWakalaHint => isSw
+      ? 'Weka taarifa za wakala kisha mpe nenosiri lake.'
+      : 'Enter Wakala details and give him the password.';
+  String get wakalaCreated => isSw ? 'Wakala ameundwa' : 'Wakala created';
+  String get giveWakalaPassword => isSw
+      ? 'Mpe wakala nenosiri hili ili aingie.'
+      : 'Give the Wakala this password so he can sign in.';
   String get agentLoginTitle => isSw ? 'Ingia kama wakala' : 'Agent login';
-  String get agentLoginHint => isSw
-      ? 'Tumia barua pepe sahihi. Mfano: richardtitomwele@gmail.com'
-      : 'Use a valid email. Example: richardtitomwele@gmail.com';
+  String get agentLoginHint =>
+      isSw ? 'Weka barua pepe na nenosiri.' : 'Enter email and password.';
+  String get gmailOnly =>
+      isSw ? 'Tumia barua pepe yenye mwisho @gmail.com' : 'Use an email ending with @gmail.com';
   String get agentPassword => isSw ? 'Nenosiri' : 'Password';
+  String get emailUsername =>
+      isSw ? 'Barua pepe / jina la mtumiaji' : 'Email / username';
   String get forgotPassword =>
       isSw ? 'Umesahau nenosiri?' : 'Forgot password?';
   String get forgotPasswordHint => isSw
       ? 'Weka barua pepe yako, tutatuma namba ya kurejesha nenosiri.'
       : 'Enter your email and we will send a password reset code.';
-  String get emailFormatHint => isSw
-      ? 'Mfano: richardtitomwele@gmail.com'
-      : 'Example: richardtitomwele@gmail.com';
-  String get invalidEmail => isSw
-      ? 'Tumia barua pepe sahihi kama name@gmail.com'
-      : 'Use a valid email like name@gmail.com';
+  String get emailFormatHint => '';
+  String get invalidEmail =>
+      isSw ? 'Weka barua pepe au jina la mtumiaji' : 'Enter email or username';
   String get sendCode => isSw ? 'Tuma namba' : 'Send code';
   String get resetCode => isSw ? 'Namba ya kurejesha' : 'Reset code';
   String get enterResetCode => isSw
@@ -120,6 +151,11 @@ class S {
       isSw ? 'Badili password' : 'Change password';
   String get cardRegistered =>
       isSw ? 'Card imesajiliwa' : 'Card registered';
+  String get skip => isSw ? 'Ruka' : 'Skip';
+  String get enterCardSerial =>
+      isSw ? 'Weka namba ya kadi' : 'Enter card serial';
+  String get firstLoad =>
+      isSw ? 'Kiasi cha kuweka (TZS)' : 'First load (TZS)';
   String get cardDeactivated =>
       isSw ? 'Card imehuishwa' : 'Card deactivated';
   String get malipo => isSw ? 'Malipo' : 'Payments';
@@ -221,6 +257,17 @@ class S {
       ? 'Leta kadi ya abiria karibu, kisha subiri isomwe.'
       : 'Bring the passenger card close, then wait to scan.';
   String get paid => isSw ? 'Amelipa' : 'Paid';
+  String get paymentComplete =>
+      isSw ? 'MALIPO YAMEKAMILIKA' : 'PAYMENT COMPLETE';
+  String get paymentFailed =>
+      isSw ? 'MALIPO HAYAKUFANIKIWA' : 'PAYMENT FAILED';
+  String get tryAgain => isSw ? 'Jaribu tena' : 'Try again';
+  String get nfcUid => 'NFC UID';
+  String get scanUid => isSw ? 'Soma UID' : 'Scan UID';
+  String get done => isSw ? 'Sawa' : 'Done';
+  String get enterCardToPay => isSw
+      ? 'Weka namba ya kadi iliyosajiliwa'
+      : 'Enter a registered card number';
   String get withdrawn => isSw ? 'Imetolewa' : 'Withdrawn';
   String get sent => isSw ? 'Imetumwa' : 'Sent';
   String tzs(int n) => 'TZS ${_format(n)}';

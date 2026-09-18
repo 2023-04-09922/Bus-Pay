@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
 
-import '../auth/money_amount.dart';
+import '../auth/agent_password_rule.dart';
+import '../auth/nida_id.dart';
 import '../auth/tz_phone.dart';
-import '../core/di/injection.dart';
 import '../l10n/strings.dart';
-import '../nfc/nfc_uid.dart';
+import '../services/api_service.dart';
 import '../state/app_state.dart';
+import 'login_screen.dart';
 
-class SajiliCardScreen extends StatefulWidget {
-  const SajiliCardScreen({super.key});
+class CreateWakalaScreen extends StatefulWidget {
+  const CreateWakalaScreen({super.key});
 
   @override
-  State<SajiliCardScreen> createState() => _SajiliCardScreenState();
+  State<CreateWakalaScreen> createState() => _CreateWakalaScreenState();
 }
 
-class _SajiliCardScreenState extends State<SajiliCardScreen> {
-  final card = TextEditingController();
-  final uid = TextEditingController();
+class _CreateWakalaScreenState extends State<CreateWakalaScreen> {
   final firstName = TextEditingController();
   final lastName = TextEditingController();
+  final email = TextEditingController();
   final phone = TextEditingController();
-  final load = TextEditingController();
+  final nida = TextEditingController();
+  final password = TextEditingController();
+  bool obscure = true;
   bool busy = false;
-  bool reading = false;
 
   @override
   void initState() {
@@ -32,64 +33,51 @@ class _SajiliCardScreenState extends State<SajiliCardScreen> {
 
   @override
   void dispose() {
-    card.dispose();
-    uid.dispose();
     firstName.dispose();
     lastName.dispose();
+    email.dispose();
     phone.dispose();
-    load.dispose();
+    nida.dispose();
+    password.dispose();
     super.dispose();
-  }
-
-  Future<void> _scanUid() async {
-    setState(() => reading = true);
-    final value = await readContactlessUid(
-      timeout: const Duration(seconds: 12),
-    );
-    if (!mounted) return;
-    setState(() => reading = false);
-    if (value != null && value.isNotEmpty) {
-      uid.text = value;
-    }
   }
 
   Future<void> submit() async {
     final s = S(AppScope.of(context).language);
     if (firstName.text.trim().isEmpty ||
         lastName.text.trim().isEmpty ||
+        email.text.trim().isEmpty ||
         !TzPhone.isValid(phone.text) ||
-        card.text.trim().length < 4 ||
-        load.text.trim().isEmpty) {
+        !NidaId.isValid(nida.text) ||
+        !AgentPasswordRule.isValid(password.text)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(s.fillAll)),
       );
       return;
     }
-
     final token = AppScope.of(context).authToken ?? '';
     setState(() => busy = true);
     try {
-      final result = await Injection.registerCard(
+      final result = await ApiService.createWakala(
         token: token,
         firstName: firstName.text,
         lastName: lastName.text,
+        email: email.text,
         phone: TzPhone.toApi(phone.text),
-        serialNumber: card.text.trim().toUpperCase(),
-        nfcUid: uid.text.trim(),
-        initialLoad: MoneyAmount.parse(load.text),
+        nida: NidaId.toApi(nida.text),
+        password: password.text,
       );
       if (!mounted) return;
-      final cardData = result['card'] as Map<String, dynamic>? ?? {};
-      final balance = (cardData['balance'] as num?)?.toInt() ??
-          MoneyAmount.parse(load.text);
+      final username = (result['username'] ?? '').toString();
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(s.cardRegistered),
+          title: Text(s.wakalaCreated),
           content: Text(
             '${firstName.text.trim()} ${lastName.text.trim()}\n'
-            '${card.text.trim().toUpperCase()}\n'
-            '${s.newBalance}: ${s.tzs(balance)}',
+            '${email.text.trim()}\n'
+            '${s.giveWakalaPassword}'
+            '${username.isEmpty ? '' : '\n$username'}',
           ),
           actions: [
             TextButton(
@@ -99,8 +87,12 @@ class _SajiliCardScreenState extends State<SajiliCardScreen> {
           ],
         ),
       );
-      if (!mounted) return;
-      Navigator.pop(context);
+      firstName.clear();
+      lastName.clear();
+      email.clear();
+      phone.text = TzPhone.format('');
+      nida.clear();
+      password.clear();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -113,87 +105,93 @@ class _SajiliCardScreenState extends State<SajiliCardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final s = S(AppScope.of(context).language);
+    final app = AppScope.of(context);
+    final s = S(app.language);
     return Scaffold(
-      appBar: AppBar(title: Text(s.sajiliCard)),
+      appBar: AppBar(
+        title: Text(s.createWakala),
+        actions: [
+          IconButton(
+            tooltip: s.logout,
+            onPressed: () {
+              app.logout();
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            },
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          Text(s.createWakalaHint, style: const TextStyle(color: Colors.grey)),
+          const SizedBox(height: 18),
           TextField(
             controller: firstName,
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
-              labelText: '${s.firstName} *',
-              prefixIcon: const Icon(Icons.person_outline),
+              labelText: s.firstName,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextField(
             controller: lastName,
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
-              labelText: '${s.lastName} *',
-              prefixIcon: const Icon(Icons.person_outline),
+              labelText: s.lastName,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          TextField(
+            controller: email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              labelText: s.email,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: phone,
             keyboardType: TextInputType.phone,
             inputFormatters: const [TzPhoneFormatter()],
             decoration: InputDecoration(
-              labelText: '${s.phone} *',
-              prefixIcon: const Icon(Icons.phone_outlined),
+              labelText: s.phone,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextField(
-            controller: card,
-            textCapitalization: TextCapitalization.characters,
-            decoration: InputDecoration(
-              labelText: '${s.cardNumber} *',
-              hintText: 'BP000001',
-              prefixIcon: const Icon(Icons.credit_card),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: load,
+            controller: nida,
             keyboardType: TextInputType.number,
-            inputFormatters: const [MoneyFormatter()],
+            inputFormatters: const [NidaFormatter()],
             decoration: InputDecoration(
-              labelText: '${s.firstLoad} *',
-              prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
+              labelText: s.nida,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextField(
-            controller: uid,
-            textCapitalization: TextCapitalization.characters,
-            inputFormatters: const [NfcUidFormatter()],
+            controller: password,
+            obscureText: obscure,
             decoration: InputDecoration(
-              labelText: s.nfcUid,
-              prefixIcon: const Icon(Icons.nfc),
+              labelText: s.agentPassword,
               suffixIcon: IconButton(
-                tooltip: s.scanUid,
-                onPressed: reading ? null : _scanUid,
-                icon: reading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.contactless),
+                icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
+                onPressed: () => setState(() => obscure = !obscure),
               ),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
+          Text(s.strongPasswordHint, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          const SizedBox(height: 22),
           SizedBox(
             height: 54,
             child: ElevatedButton(
@@ -205,11 +203,8 @@ class _SajiliCardScreenState extends State<SajiliCardScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : Text(
-                      s.sajiliCard,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                      s.createWakala,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
             ),
           ),

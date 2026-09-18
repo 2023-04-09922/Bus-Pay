@@ -46,3 +46,21 @@ app.*.map.json
 
 /backend/node_modules/
 /backend/data.json
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+npm-debug.log*
+
+# IDE / OS
+.vscode/
+*.code-workspace
+
+# Android/Flutter generated files
+android/.gradle/
+android/local.properties
+android/build/

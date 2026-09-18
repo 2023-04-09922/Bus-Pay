@@ -1,23 +1,20 @@
 import 'package:flutter/material.dart';
 
-import '../auth/agent_email.dart';
 import '../auth/login_id.dart';
 import '../core/constants/app_config.dart';
-import '../core/di/injection.dart';
 import '../l10n/strings.dart';
-import '../presentation/agent/agent_home_page.dart';
 import '../services/api_service.dart';
 import '../state/app_state.dart';
-import 'agent_forgot_password_screen.dart';
+import 'create_wakala_screen.dart';
 
-class AgentLoginScreen extends StatefulWidget {
-  const AgentLoginScreen({super.key});
+class AdminLoginScreen extends StatefulWidget {
+  const AdminLoginScreen({super.key});
 
   @override
-  State<AgentLoginScreen> createState() => _AgentLoginScreenState();
+  State<AdminLoginScreen> createState() => _AdminLoginScreenState();
 }
 
-class _AgentLoginScreenState extends State<AgentLoginScreen> {
+class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final email = TextEditingController();
   final password = TextEditingController();
   bool obscure = true;
@@ -26,7 +23,7 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
   @override
   void initState() {
     super.initState();
-    email.text = AppConfig.agentDemoEmail;
+    email.text = AppConfig.adminDemoEmail;
   }
 
   @override
@@ -38,24 +35,22 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
 
   Future<void> login() async {
     final s = S(AppScope.of(context).language);
-    final address = AgentEmail.normalize(email.text);
-    if (address.isEmpty || password.text.isEmpty) {
+    if (email.text.trim().isEmpty || password.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(s.fillAll)),
       );
       return;
     }
-
     setState(() => busy = true);
     try {
-      final data = await Injection.agentLogin(
-        email: address,
+      final data = await ApiService.adminLogin(
+        email: email.text.trim(),
         password: password.text,
       );
       if (!mounted) return;
       final app = AppScope.of(context);
       app.applyRemoteLogin(data);
-      if (app.currentRole != UserRole.agent) {
+      if (app.currentRole != UserRole.admin) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(s.incorrectCredentials)),
         );
@@ -63,22 +58,17 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
       }
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const AgentHomePage()),
+        MaterialPageRoute(builder: (_) => const CreateWakalaScreen()),
       );
     } catch (e) {
       if (!mounted) return;
-      final status = e is ApiException ? e.statusCode : null;
       final raw = e.toString().replaceFirst('Exception: ', '');
-      final message = status == 401
-          ? s.incorrectCredentials
-          : (status == 429
-              ? s.tooManyRequests
-              : (raw.contains('did not respond') ||
-                      raw.contains('TimeoutException')
-                  ? s.connectionTimeout
-                  : raw));
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(
+          content: Text(
+            raw.contains('did not respond') ? s.connectionTimeout : raw,
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => busy = false);
@@ -89,20 +79,15 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
   Widget build(BuildContext context) {
     final s = S(AppScope.of(context).language);
     return Scaffold(
-      appBar: AppBar(title: Text(s.agentLoginTitle)),
+      appBar: AppBar(title: Text(s.adminLogin)),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          Text(
-            s.agentLoginHint,
-            style: const TextStyle(color: Colors.grey),
-          ),
+          Text(s.adminLoginHint, style: const TextStyle(color: Colors.grey)),
           const SizedBox(height: 20),
           TextField(
             controller: email,
-            autofocus: true,
             keyboardType: TextInputType.emailAddress,
-            autocorrect: false,
             decoration: InputDecoration(
               labelText: s.email,
               prefixIcon: const Icon(Icons.email_outlined),
@@ -123,28 +108,7 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: busy
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AgentForgotPasswordScreen(
-                            email: email.text,
-                          ),
-                        ),
-                      );
-                    },
-              child: Text(
-                s.forgotPassword,
-                style: const TextStyle(fontSize: 13),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
           SizedBox(
             height: 54,
             child: ElevatedButton(
@@ -156,7 +120,7 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : Text(
-                      s.loginAsAgent,
+                      s.adminLogin,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
             ),

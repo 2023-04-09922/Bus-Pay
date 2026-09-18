@@ -1,6 +1,10 @@
 import 'package:flutter/services.dart';
 
+import 'digit_cursor.dart';
+
 class TzPhone {
+  static const prefix = '+255 ';
+
   static String nationalDigits(String raw) {
     var digits = raw.replaceAll(RegExp(r'\D'), '');
     while (digits.startsWith('255')) {
@@ -14,9 +18,9 @@ class TzPhone {
 
   static String format(String raw) {
     final national = nationalDigits(raw);
-    if (national.isEmpty) return '+255 ';
-    if (national.length <= 3) return '+255 $national';
-    return '+255 ${national.substring(0, 3)} ${national.substring(3)}';
+    if (national.isEmpty) return prefix;
+    if (national.length <= 3) return '$prefix$national';
+    return '$prefix${national.substring(0, 3)} ${national.substring(3)}';
   }
 
   static bool isValid(String raw) =>
@@ -27,24 +31,39 @@ class TzPhone {
 
 class TzPhoneFormatter extends TextInputFormatter {
   const TzPhoneFormatter();
+
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
+    final oldDigits = TzPhone.nationalDigits(oldValue.text);
+    var nextDigits = TzPhone.nationalDigits(newValue.text);
     final deleting = newValue.text.length < oldValue.text.length;
-    var source = newValue.text;
-    if (deleting) {
-      final oldDigits = TzPhone.nationalDigits(oldValue.text);
-      final newDigits = TzPhone.nationalDigits(newValue.text);
-      if (oldDigits.isNotEmpty && newDigits.length >= oldDigits.length) {
-        source = oldDigits.substring(0, oldDigits.length - 1);
-      }
+    final oldBefore = _nationalBefore(oldValue);
+    var cursorDigits = _nationalBefore(newValue);
+
+    if (deleting && nextDigits.length >= oldDigits.length && oldBefore > 0) {
+      nextDigits = deleteDigitAt(oldDigits, oldBefore);
+      cursorDigits = oldBefore - 1;
     }
-    final formatted = TzPhone.format(source);
+
+    nextDigits = TzPhone.nationalDigits(nextDigits);
+    cursorDigits = cursorDigits.clamp(0, nextDigits.length);
+    final formatted = TzPhone.format(nextDigits);
+    final offset = cursorDigits == 0
+        ? TzPhone.prefix.length
+        : offsetAfterDigits(formatted, cursorDigits + 3);
     return TextEditingValue(
       text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
+      selection: TextSelection.collapsed(
+        offset: offset.clamp(0, formatted.length),
+      ),
     );
+  }
+
+  int _nationalBefore(TextEditingValue value) {
+    final allBefore = digitCountBefore(value.text, value.selection.baseOffset);
+    return (allBefore - 3).clamp(0, 9);
   }
 }

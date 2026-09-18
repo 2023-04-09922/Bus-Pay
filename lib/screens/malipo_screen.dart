@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
 import '../state/app_state.dart';
+import '../auth/money_amount.dart';
 import '../widgets/wallet_balance.dart';
 import 'nfc_scanner_screen.dart';
 
@@ -138,7 +139,7 @@ class _MalipoScreenState extends State<MalipoScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  fare.isEmpty ? 'TZS 0' : 'TZS $fare',
+                  fare.isEmpty ? 'TZS 0' : 'TZS ${MoneyAmount.format(fare)}',
                   style: const TextStyle(
                     fontSize: 34,
                     fontWeight: FontWeight.bold,

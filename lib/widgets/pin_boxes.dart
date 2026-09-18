@@ -8,12 +8,14 @@ class PinBoxes extends StatefulWidget {
     required this.onChanged,
     this.label,
     this.autofocus = false,
+    this.success = false,
   });
 
   final String value;
   final ValueChanged<String> onChanged;
   final String? label;
   final bool autofocus;
+  final bool success;
 
   @override
   State<PinBoxes> createState() => _PinBoxesState();
@@ -89,17 +91,25 @@ class _PinBoxesState extends State<PinBoxes> {
                     margin: const EdgeInsets.symmetric(horizontal: 6),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
+                      color: widget.success
+                          ? Colors.green.withValues(alpha: 0.12)
+                          : null,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        width: current ? 2.4 : 1.4,
-                        color: current
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).dividerColor,
+                        width: widget.success || current ? 2.4 : 1.4,
+                        color: widget.success
+                            ? Colors.green
+                            : current
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).dividerColor,
                       ),
                     ),
                     child: Text(
                       filled ? '●' : '',
-                      style: const TextStyle(fontSize: 22),
+                      style: TextStyle(
+                        fontSize: 22,
+                        color: widget.success ? Colors.green : null,
+                      ),
                     ),
                   );
                 }),
@@ -113,6 +123,7 @@ class _PinBoxesState extends State<PinBoxes> {
                   enableInteractiveSelection: false,
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,
+                  onSubmitted: (_) {},
                   maxLength: 4,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   style: const TextStyle(

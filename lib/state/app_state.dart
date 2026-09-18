@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/account_store.dart';
 import '../auth/login_id.dart';
+import '../services/api_service.dart';
 
 class Transaction {
   Transaction({
@@ -10,6 +11,7 @@ class Transaction {
     required this.time,
     this.type = TransactionType.nauli,
     this.detail = '',
+    this.reference = '',
   });
 
   final String passengerName;
@@ -17,6 +19,7 @@ class Transaction {
   final DateTime time;
   final TransactionType type;
   final String detail;
+  final String reference;
 }
 
 enum TransactionType { nauli, toaPesa, tumaPesa }
@@ -88,9 +91,11 @@ class AppState extends ChangeNotifier {
     final username = (user['username'] ?? hiddenUsername ?? '').toString();
     final roleValue =
         (user['role'] ?? data['role'] ?? '').toString().toLowerCase();
-    final role = roleValue.contains('agent')
-        ? UserRole.agent
-        : (LoginId.roleOf(username) ?? UserRole.conductor);
+    final role = roleValue.contains('admin')
+        ? UserRole.admin
+        : roleValue.contains('agent')
+            ? UserRole.agent
+            : (LoginId.roleOf(username) ?? UserRole.conductor);
 
     final names = (user['name'] ?? user['fullName'] ?? '').toString().trim();
     var first = (user['firstName'] ?? '').toString().trim();
@@ -113,11 +118,14 @@ class AppState extends ChangeNotifier {
       tillNumber: (user['tillNumber'] ?? user['till'] ?? '').toString(),
     );
     currentRole = role;
-    if (username.isNotEmpty) {
+    final collected = user['collected'] ?? data['collected'];
+    if (collected is num) walletBalance = collected.toInt();
+    if (role == UserRole.conductor && username.isNotEmpty) {
       hiddenUsername = username;
       AccountStore.saveUsername(username);
     }
     notifyListeners();
+    refreshLedger();
   }
 
   Future<void> loadSavedAccount() async {
@@ -135,7 +143,56 @@ class AppState extends ChangeNotifier {
     currentUser = null;
     currentRole = null;
     authToken = null;
+    walletBalance = 0;
+    transactions.clear();
     notifyListeners();
+  }
+
+  Future<void> refreshLedger() async {
+    final token = authToken;
+    if (token == null || token.isEmpty) return;
+    try {
+      final data = await ApiService.getTransactions(token: token);
+      applyLedger(data);
+    } catch (_) {}
+  }
+
+  void applyLedger(Map<String, dynamic> data) {
+    final rows = data['transactions'];
+    final collected = data['collected'];
+    transactions
+      ..removeWhere((tx) => tx.type == TransactionType.nauli)
+      ..insertAll(0, _parseNauli(rows));
+    if (collected is num) {
+      walletBalance = collected.toInt();
+    } else {
+      walletBalance = transactions
+          .where((tx) => tx.type == TransactionType.nauli)
+          .fold(0, (sum, tx) => sum + tx.amount);
+    }
+    notifyListeners();
+  }
+
+  List<Transaction> _parseNauli(Object? rows) {
+    if (rows is! List) return const [];
+    return rows.map((row) {
+      final map = row is Map ? Map<String, dynamic>.from(row) : <String, dynamic>{};
+      final createdAt = DateTime.tryParse('${map['createdAt'] ?? ''}') ??
+          DateTime.now();
+      final first = (map['firstName'] ?? '').toString().trim();
+      final last = (map['lastName'] ?? '').toString().trim();
+      final fromNames = '$first $last'.trim();
+      final passenger = fromNames.isNotEmpty
+          ? fromNames
+          : (map['passenger'] ?? map['card'] ?? '').toString();
+      return Transaction(
+        passengerName: passenger.isEmpty ? 'Passenger' : passenger,
+        amount: (map['amount'] as num?)?.toInt() ?? 0,
+        time: createdAt.toLocal(),
+        reference: (map['reference'] ?? '').toString(),
+        detail: (map['card'] ?? '').toString(),
+      );
+    }).toList();
   }
 
   void toggleWalletHidden() {

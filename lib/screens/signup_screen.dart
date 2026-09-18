@@ -25,6 +25,9 @@ class _SignupScreenState extends State<SignupScreen> {
   String pin = '';
   String confirmPin = '';
   bool busy = false;
+  String phoneError = '';
+  String nidaError = '';
+  int _checkGen = 0;
 
   @override
   void initState() {
@@ -33,6 +36,8 @@ class _SignupScreenState extends State<SignupScreen> {
       text: TzPhone.format(''),
       selection: TextSelection.collapsed(offset: TzPhone.format('').length),
     );
+    phone.addListener(_onIdentityChanged);
+    nida.addListener(_onIdentityChanged);
   }
 
   @override
@@ -44,23 +49,49 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
+  void _onIdentityChanged() {
+    final gen = ++_checkGen;
+    Future<void>.delayed(const Duration(milliseconds: 250), () async {
+      if (!mounted || gen != _checkGen) return;
+      final s = S(AppScope.of(context).language);
+      var nextPhone = '';
+      var nextNida = '';
+      try {
+        if (TzPhone.isValid(phone.text) || NidaId.isValid(nida.text)) {
+          final data = await ApiService.checkAvailability(
+            phone: TzPhone.isValid(phone.text) ? TzPhone.toApi(phone.text) : null,
+            nida: NidaId.isValid(nida.text) ? NidaId.toApi(nida.text) : null,
+          );
+          if (!mounted || gen != _checkGen) return;
+          if (data['phoneTaken'] == true) nextPhone = s.phoneAlreadyUsed;
+          if (data['nidaTaken'] == true) nextNida = s.nidaAlreadyUsed;
+        }
+      } catch (_) {}
+      if (!mounted || gen != _checkGen) return;
+      setState(() {
+        phoneError = nextPhone;
+        nidaError = nextNida;
+      });
+    });
+  }
+
   Future<void> goToFingerprint() async {
     final s = S(AppScope.of(context).language);
     if (firstName.text.isEmpty ||
         lastName.text.isEmpty ||
         !TzPhone.isValid(phone.text) ||
-        !NidaId.isValid(nida.text)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            firstName.text.isEmpty || lastName.text.isEmpty
-                ? s.fillAll
-                : (!TzPhone.isValid(phone.text)
-                    ? s.badPhoneFormat
-                    : s.badNidaFormat),
-          ),
-        ),
-      );
+        !NidaId.isValid(nida.text) ||
+        phoneError.isNotEmpty ||
+        nidaError.isNotEmpty) {
+      setState(() {
+        if (!TzPhone.isValid(phone.text)) phoneError = s.badPhoneFormat;
+        if (!NidaId.isValid(nida.text)) nidaError = s.badNidaFormat;
+      });
+      if (firstName.text.isEmpty || lastName.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(s.fillAll)),
+        );
+      }
       return;
     }
 
@@ -127,18 +158,28 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
       final raw = e.toString().replaceFirst('Exception: ', '');
       final lower = raw.toLowerCase();
-      final text = lower.contains('phone already')
-          ? s.phoneAlreadyUsed
-          : lower.contains('nida already')
-              ? s.nidaAlreadyUsed
-              : (raw.contains('did not respond') ||
+      setState(() {
+        if (lower.contains('phone already')) {
+          phoneError = s.phoneAlreadyUsed;
+          step = 0;
+        } else if (lower.contains('nida already')) {
+          nidaError = s.nidaAlreadyUsed;
+          step = 0;
+        }
+      });
+      if (phoneError.isEmpty && nidaError.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              raw.contains('did not respond') ||
                       raw.contains('TimeoutException') ||
                       raw.contains('Could not reach')
                   ? s.connectionTimeout
-                  : raw);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(text)),
-      );
+                  : raw,
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -202,6 +243,8 @@ class _SignupScreenState extends State<SignupScreen> {
         decoration: InputDecoration(
           labelText: s.phone,
           prefixIcon: const Icon(Icons.phone_outlined),
+          errorText: phoneError.isEmpty ? null : phoneError,
+          errorStyle: const TextStyle(fontSize: 12, color: Colors.red),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
@@ -213,6 +256,8 @@ class _SignupScreenState extends State<SignupScreen> {
         decoration: InputDecoration(
           labelText: s.nida,
           prefixIcon: const Icon(Icons.badge_outlined),
+          errorText: nidaError.isEmpty ? null : nidaError,
+          errorStyle: const TextStyle(fontSize: 12, color: Colors.red),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),

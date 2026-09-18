@@ -152,10 +152,8 @@ class _AgentForgotPasswordScreenState extends State<AgentForgotPasswordScreen> {
             keyboardType: TextInputType.emailAddress,
             autocorrect: false,
             decoration: InputDecoration(
-              labelText: s.email,
-              hintText: 'name@gmail.com',
-              helperText: s.emailFormatHint,
-              prefixIcon: const Icon(Icons.email_outlined),
+              labelText: s.emailUsername,
+              prefixIcon: const Icon(Icons.person_outline),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),

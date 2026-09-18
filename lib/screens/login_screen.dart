@@ -9,6 +9,7 @@ import '../widgets/app_logo.dart';
 import '../widgets/pin_boxes.dart';
 import '../widgets/pin_error_shake.dart';
 import 'agent_login_screen.dart';
+import 'admin_login_screen.dart';
 import 'conductor_forgot_pin_screen.dart';
 import 'signup_screen.dart';
 
@@ -23,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String pin = '';
   bool busy = false;
   bool wrongPin = false;
+  bool pinOk = false;
   int wrongPulse = 0;
 
   Future<void> login() async {
@@ -43,7 +45,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() => busy = true);
+    setState(() {
+      busy = true;
+      pinOk = false;
+    });
     try {
       final response = await ApiService.login(
         username: username,
@@ -51,6 +56,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (!mounted) return;
       app.applyRemoteLogin(response);
+      setState(() => pinOk = true);
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeShell()),
@@ -59,9 +66,17 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       final status = e is ApiException ? e.statusCode : null;
       final raw = e.toString().replaceFirst('Exception: ', '');
+      final lower = raw.toLowerCase();
+      if (status == 404 || lower.contains('account not found')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(s.noAccount)),
+        );
+        return;
+      }
       if (status == 401) {
         setState(() {
           pin = '';
+          pinOk = false;
           wrongPin = true;
           wrongPulse++;
         });
@@ -118,10 +133,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   value: pin,
                   label: s.enterPin,
                   autofocus: true,
-                  onChanged: (value) => setState(() {
-                    pin = value;
-                    if (wrongPin) wrongPin = false;
-                  }),
+                  success: pinOk,
+                  onChanged: (value) {
+                    setState(() {
+                      pin = value;
+                      pinOk = false;
+                      if (wrongPin) wrongPin = false;
+                    });
+                  },
                 ),
                 const SizedBox(height: 10),
                 PinErrorShake(
@@ -151,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: busy ? null : login,
+                    onPressed: busy || pin.length != 4 ? null : login,
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -198,6 +217,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                   child: Text(
                     s.loginAsAgent,
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ),
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminLoginScreen(),
+                            ),
+                          );
+                        },
+                  child: Text(
+                    s.adminLogin,
                     style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                 ),

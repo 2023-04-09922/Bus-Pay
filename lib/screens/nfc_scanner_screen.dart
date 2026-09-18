@@ -1,20 +1,11 @@
-import 'dart:async';
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:nfc_manager/nfc_manager.dart';
 
 import '../l10n/strings.dart';
+import '../nfc/nfc_uid.dart';
+import '../services/api_service.dart';
 import '../state/app_state.dart';
-import 'payment_verify_screen.dart';
-
-const _demoPassengers = [
-  'Amina Hassan',
-  'Juma Ally',
-  'Fatuma Said',
-  'Peter Mwamba',
-  'Neema John',
-  'Hassan Bakari',
-];
+import 'payment_success_screen.dart';
 
 class NfcScannerScreen extends StatefulWidget {
   const NfcScannerScreen({super.key, required this.amount});
@@ -28,8 +19,8 @@ class NfcScannerScreen extends StatefulWidget {
 class _NfcScannerScreenState extends State<NfcScannerScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse;
-  Timer? _timer;
   bool found = false;
+  bool resolving = false;
 
   @override
   void initState() {
@@ -38,32 +29,121 @@ class _NfcScannerScreenState extends State<NfcScannerScreen>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
-    _timer = Timer(const Duration(seconds: 3), _onCardFound);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _listen());
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    stopNfc();
     _pulse.dispose();
     super.dispose();
   }
 
-  void _onCardFound() {
-    if (!mounted) return;
+  Future<void> _listen() async {
+    if (!await nfcEnabled() || !mounted) return;
+    await NfcManagerSession.start((uid) {
+      if (!mounted || found || resolving) return;
+      _pay(nfcUid: uid);
+    });
+  }
+
+  Future<void> _simulate() async {
+    final s = S(AppScope.of(context).language);
+    final serial = TextEditingController();
+    final entered = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.enterCardToPay),
+        content: TextField(
+          controller: serial,
+          autofocus: true,
+          decoration: InputDecoration(labelText: s.cardNumber),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(s.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, serial.text.trim()),
+            child: Text(s.continueBtn),
+          ),
+        ],
+      ),
+    );
+    serial.dispose();
+    if (entered == null || entered.isEmpty || !mounted) return;
+    await _pay(serialNumber: entered);
+  }
+
+  Future<void> _pay({String? serialNumber, String? nfcUid}) async {
+    if (resolving) return;
+    resolving = true;
     setState(() => found = true);
-    final passenger = _demoPassengers[Random().nextInt(_demoPassengers.length)];
-    Future.delayed(const Duration(milliseconds: 700), () {
+    final app = AppScope.of(context);
+    final token = app.authToken ?? '';
+    var name = '';
+    try {
+      final looked = await ApiService.lookupCard(
+        token: token,
+        serialNumber: serialNumber,
+        nfcUid: nfcUid,
+      );
+      final customer = looked['customer'] as Map<String, dynamic>? ?? {};
+      final card = looked['card'] as Map<String, dynamic>? ?? {};
+      name =
+          '${customer['firstName'] ?? ''} ${customer['lastName'] ?? ''}'.trim();
+      final result = await ApiService.tapPay(
+        token: token,
+        amount: widget.amount,
+        serialNumber: serialNumber ?? card['serialNumber']?.toString(),
+        nfcUid: nfcUid ?? card['nfcUid']?.toString(),
+      );
+      if (name.isEmpty) {
+        name = (result['passenger'] ?? '').toString();
+      }
+      await app.refreshLedger();
+      if (!mounted) return;
+      await stopNfc();
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => PaymentVerifyScreen(
+          builder: (_) => PaymentSuccessScreen(
             amount: widget.amount,
-            passengerName: passenger,
+            passengerName: name.isEmpty ? 'Passenger' : name,
+            reference: (result['reference'] ?? '').toString(),
+            success: true,
           ),
         ),
       );
-    });
+    } catch (e) {
+      if (!mounted) return;
+      await stopNfc();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessScreen(
+            amount: widget.amount,
+            passengerName: name.isEmpty
+                ? e.toString().replaceFirst('Exception: ', '')
+                : name,
+            success: false,
+            onRetry: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NfcScannerScreen(amount: widget.amount),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    } finally {
+      resolving = false;
+    }
   }
 
   @override
@@ -129,15 +209,25 @@ class _NfcScannerScreenState extends State<NfcScannerScreen>
               const SizedBox(height: 32),
               if (!found)
                 TextButton(
-                  onPressed: _onCardFound,
-                  child: Text(
-                    s.isSw ? 'Simulia kadi (demo)' : 'Simulate card (demo)',
-                  ),
+                  onPressed: _simulate,
+                  child: Text(s.enterCardToPay),
                 ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class NfcManagerSession {
+  static Future<void> start(void Function(String uid) onUid) async {
+    await NfcManager.instance.startSession(
+      pollingOptions: {NfcPollingOption.iso14443},
+      onDiscovered: (tag) {
+        final uid = uidFromTag(tag);
+        if (uid != null) onUid(uid);
+      },
     );
   }
 }

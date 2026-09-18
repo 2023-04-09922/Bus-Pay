@@ -1,22 +1,72 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
+import '../services/api_service.dart';
 import '../state/app_state.dart';
+import 'payment_success_screen.dart';
 
-class PaymentVerifyScreen extends StatelessWidget {
+class PaymentVerifyScreen extends StatefulWidget {
   const PaymentVerifyScreen({
     super.key,
     required this.amount,
     required this.passengerName,
+    this.serialNumber,
+    this.nfcUid,
   });
 
   final int amount;
   final String passengerName;
+  final String? serialNumber;
+  final String? nfcUid;
+
+  @override
+  State<PaymentVerifyScreen> createState() => _PaymentVerifyScreenState();
+}
+
+class _PaymentVerifyScreenState extends State<PaymentVerifyScreen> {
+  bool busy = false;
+
+  Future<void> confirm() async {
+    final app = AppScope.of(context);
+    final token = app.authToken ?? '';
+    setState(() => busy = true);
+    try {
+      final result = await ApiService.tapPay(
+        token: token,
+        amount: widget.amount,
+        serialNumber: widget.serialNumber,
+        nfcUid: widget.nfcUid,
+      );
+      if (!mounted) return;
+      await app.refreshLedger();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessScreen(
+            amount: widget.amount,
+            passengerName: widget.passengerName,
+            reference: (result['reference'] ?? '').toString(),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context);
-    final s = S(app.language);
+    final s = S(AppScope.of(context).language);
 
     return Scaffold(
       appBar: AppBar(
@@ -25,7 +75,7 @@ class PaymentVerifyScreen extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: s.cancel,
-            onPressed: () => Navigator.pop(context),
+            onPressed: busy ? null : () => Navigator.pop(context),
             icon: const Icon(Icons.close),
           ),
         ],
@@ -38,13 +88,13 @@ class PaymentVerifyScreen extends StatelessWidget {
             CircleAvatar(
               radius: 44,
               child: Text(
-                passengerName.substring(0, 1),
+                widget.passengerName.substring(0, 1),
                 style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              passengerName,
+              widget.passengerName,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             Text(
@@ -63,7 +113,7 @@ class PaymentVerifyScreen extends StatelessWidget {
                 children: [
                   Text(s.nauli, style: const TextStyle(fontSize: 14)),
                   Text(
-                    s.tzs(amount),
+                    s.tzs(widget.amount),
                     style: const TextStyle(
                       fontSize: 34,
                       fontWeight: FontWeight.bold,
@@ -87,7 +137,7 @@ class PaymentVerifyScreen extends StatelessWidget {
                   child: SizedBox(
                     height: 72,
                     child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: busy ? null : () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red, width: 2),
@@ -104,13 +154,7 @@ class PaymentVerifyScreen extends StatelessWidget {
                   child: SizedBox(
                     height: 72,
                     child: ElevatedButton(
-                      onPressed: () {
-                        app.addNauliPayment(
-                          passengerName: passengerName,
-                          amount: amount,
-                        );
-                        Navigator.pop(context);
-                      },
+                      onPressed: busy ? null : confirm,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -118,7 +162,16 @@ class PaymentVerifyScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: const Icon(Icons.check, size: 40),
+                      child: busy
+                          ? const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check, size: 40),
                     ),
                   ),
                 ),

@@ -1,4 +1,4 @@
-enum UserRole { conductor, agent }
+enum UserRole { conductor, agent, admin }
 
 class LoginId {
   static final conductorPattern =
