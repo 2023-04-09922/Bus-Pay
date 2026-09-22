@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../core/navigation/app_page_route.dart';
 import '../l10n/strings.dart';
-import '../state/app_state.dart';
 import '../auth/money_amount.dart';
+import '../state/app_state.dart';
 import '../widgets/wallet_balance.dart';
 import 'nfc_scanner_screen.dart';
 
@@ -39,7 +40,7 @@ class _MalipoScreenState extends State<MalipoScreen> {
 
     await Navigator.push(
       context,
-      MaterialPageRoute(
+      AppPageRoute(
         builder: (_) => NfcScannerScreen(amount: int.parse(fare)),
       ),
     );

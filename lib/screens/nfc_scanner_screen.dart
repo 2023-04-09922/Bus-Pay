@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 
+import '../core/navigation/app_page_route.dart';
 import '../l10n/strings.dart';
 import '../nfc/nfc_uid.dart';
 import '../services/api_service.dart';
@@ -21,6 +22,7 @@ class _NfcScannerScreenState extends State<NfcScannerScreen>
   late final AnimationController _pulse;
   bool found = false;
   bool resolving = false;
+  bool navigated = false;
 
   @override
   void initState() {
@@ -42,104 +44,87 @@ class _NfcScannerScreenState extends State<NfcScannerScreen>
   Future<void> _listen() async {
     if (!await nfcEnabled() || !mounted) return;
     await NfcManagerSession.start((uid) {
-      if (!mounted || found || resolving) return;
+      if (!mounted || found || resolving || navigated) return;
       _pay(nfcUid: uid);
     });
   }
 
-  Future<void> _simulate() async {
-    final s = S(AppScope.of(context).language);
-    final serial = TextEditingController();
-    final entered = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.enterCardToPay),
-        content: TextField(
-          controller: serial,
-          autofocus: true,
-          decoration: InputDecoration(labelText: s.cardNumber),
+  Future<void> _goResult({
+    required bool success,
+    required String passengerName,
+    String reference = '',
+    VoidCallback? onRetry,
+  }) async {
+    if (!mounted || navigated) return;
+    navigated = true;
+    try {
+      await stopNfc();
+    } catch (_) {}
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    await Navigator.pushReplacement(
+      context,
+      AppPageRoute(
+        builder: (_) => PaymentSuccessScreen(
+          amount: widget.amount,
+          passengerName: passengerName,
+          reference: reference,
+          success: success,
+          onRetry: onRetry,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(s.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, serial.text.trim()),
-            child: Text(s.continueBtn),
-          ),
-        ],
       ),
     );
-    serial.dispose();
-    if (entered == null || entered.isEmpty || !mounted) return;
-    await _pay(serialNumber: entered);
   }
 
   Future<void> _pay({String? serialNumber, String? nfcUid}) async {
-    if (resolving) return;
+    if (resolving || navigated) return;
     resolving = true;
-    setState(() => found = true);
+    if (mounted) setState(() => found = true);
+
     final app = AppScope.of(context);
     final token = app.authToken ?? '';
-    var name = '';
+
     try {
-      final looked = await ApiService.lookupCard(
-        token: token,
-        serialNumber: serialNumber,
-        nfcUid: nfcUid,
-      );
-      final customer = looked['customer'] as Map<String, dynamic>? ?? {};
-      final card = looked['card'] as Map<String, dynamic>? ?? {};
-      name =
-          '${customer['firstName'] ?? ''} ${customer['lastName'] ?? ''}'.trim();
       final result = await ApiService.tapPay(
         token: token,
         amount: widget.amount,
-        serialNumber: serialNumber ?? card['serialNumber']?.toString(),
-        nfcUid: nfcUid ?? card['nfcUid']?.toString(),
+        serialNumber: serialNumber,
+        nfcUid: nfcUid,
       );
+
+      final customer = result['customer'] as Map<String, dynamic>? ?? {};
+      var name =
+          '${customer['firstName'] ?? ''} ${customer['lastName'] ?? ''}'.trim();
       if (name.isEmpty) {
         name = (result['passenger'] ?? '').toString();
       }
-      await app.refreshLedger();
-      if (!mounted) return;
-      await stopNfc();
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PaymentSuccessScreen(
-            amount: widget.amount,
-            passengerName: name.isEmpty ? 'Passenger' : name,
-            reference: (result['reference'] ?? '').toString(),
-            success: true,
-          ),
-        ),
+      final reference = (result['reference'] ?? '').toString();
+
+      // Show success first — never block success UI on ledger refresh / NFC stop.
+      await _goResult(
+        success: true,
+        passengerName: name.isEmpty ? 'Passenger' : name,
+        reference: reference,
       );
+
+      // Refresh balance quietly after the success screen is up.
+      Future<void>.delayed(const Duration(milliseconds: 400), () {
+        app.refreshLedger();
+      });
     } catch (e) {
-      if (!mounted) return;
-      await stopNfc();
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PaymentSuccessScreen(
-            amount: widget.amount,
-            passengerName: name.isEmpty
-                ? e.toString().replaceFirst('Exception: ', '')
-                : name,
-            success: false,
-            onRetry: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => NfcScannerScreen(amount: widget.amount),
-                ),
-              );
-            },
-          ),
-        ),
+      if (!mounted || navigated) return;
+      final message = e.toString().replaceFirst('Exception: ', '');
+      await _goResult(
+        success: false,
+        passengerName: message,
+        onRetry: () {
+          Navigator.pushReplacement(
+            context,
+            AppPageRoute(
+              builder: (_) => NfcScannerScreen(amount: widget.amount),
+            ),
+          );
+        },
       );
     } finally {
       resolving = false;
@@ -151,6 +136,7 @@ class _NfcScannerScreenState extends State<NfcScannerScreen>
     final s = S(AppScope.of(context).language);
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: Text(s.lipia)),
       body: Center(
         child: Padding(
@@ -206,12 +192,6 @@ class _NfcScannerScreenState extends State<NfcScannerScreen>
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 32),
-              if (!found)
-                TextButton(
-                  onPressed: _simulate,
-                  child: Text(s.enterCardToPay),
-                ),
             ],
           ),
         ),

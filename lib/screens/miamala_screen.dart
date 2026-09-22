@@ -10,13 +10,22 @@ class MiamalaScreen extends StatefulWidget {
   State<MiamalaScreen> createState() => _MiamalaScreenState();
 }
 
-class _MiamalaScreenState extends State<MiamalaScreen> {
+class _MiamalaScreenState extends State<MiamalaScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
   bool loading = false;
 
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _reload());
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   Future<void> _reload() async {
@@ -29,38 +38,115 @@ class _MiamalaScreenState extends State<MiamalaScreen> {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final s = S(app.language);
+    final payments =
+        app.transactions.where((tx) => tx.type == TransactionType.nauli).toList();
+    final withdrawals = app.transactions
+        .where((tx) => tx.type == TransactionType.toaPesa)
+        .toList();
 
-    if (loading && app.transactions.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    return Column(
+      children: [
+        Material(
+          color: Theme.of(context).colorScheme.surface,
+          child: TabBar(
+            controller: _tabs,
+            tabs: [
+              Tab(text: s.paymentsTab),
+              Tab(text: s.withdrawalsTab),
+            ],
+          ),
+        ),
+        Expanded(
+          child: loading && app.transactions.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                  controller: _tabs,
+                  children: [
+                    _TxList(
+                      items: payments,
+                      emptyLabel: s.noTx,
+                      onRefresh: _reload,
+                      language: app.language,
+                      inbound: true,
+                    ),
+                    _TxList(
+                      items: withdrawals,
+                      emptyLabel: s.noWithdrawals,
+                      onRefresh: _reload,
+                      language: app.language,
+                      inbound: false,
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
 
-    if (app.transactions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+class _TxList extends StatelessWidget {
+  const _TxList({
+    required this.items,
+    required this.emptyLabel,
+    required this.onRefresh,
+    required this.language,
+    required this.inbound,
+  });
+
+  final List<Transaction> items;
+  final String emptyLabel;
+  final Future<void> Function() onRefresh;
+  final AppLanguage language;
+  final bool inbound;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S(language);
+
+    if (items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            const Icon(Icons.receipt_long, size: 64, color: Colors.grey),
-            const SizedBox(height: 12),
-            Text(s.noTx, style: const TextStyle(color: Colors.grey)),
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.45,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      inbound ? Icons.receipt_long : Icons.storefront_outlined,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(emptyLabel, style: const TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: _reload,
+      onRefresh: onRefresh,
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
-        itemCount: app.transactions.length,
+        itemCount: items.length,
         separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, i) {
-          final tx = app.transactions[i];
-          final isIn = tx.type == TransactionType.nauli;
+          final tx = items[i];
+          final isIn = inbound && tx.type == TransactionType.nauli;
           final subtitle = switch (tx.type) {
             TransactionType.nauli => tx.reference.isEmpty
                 ? s.paid
                 : '${s.paid} • ${tx.reference}',
-            TransactionType.toaPesa => '${s.withdrawn} • ${tx.detail}',
+            TransactionType.toaPesa => tx.reference.isEmpty
+                ? '${s.withdrawn} • ${tx.detail}'
+                : '${s.withdrawn} • ${tx.detail} • ${tx.reference}',
             TransactionType.tumaPesa => '${s.sent} • ${tx.detail}',
           };
           final time =
@@ -73,7 +159,7 @@ class _MiamalaScreenState extends State<MiamalaScreen> {
                     ? Colors.green.withValues(alpha: 0.15)
                     : Colors.orange.withValues(alpha: 0.15),
                 child: Icon(
-                  isIn ? Icons.person : Icons.swap_horiz,
+                  isIn ? Icons.person : Icons.storefront_outlined,
                   color: isIn ? Colors.green : Colors.orange,
                 ),
               ),

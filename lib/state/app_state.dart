@@ -91,11 +91,9 @@ class AppState extends ChangeNotifier {
     final username = (user['username'] ?? hiddenUsername ?? '').toString();
     final roleValue =
         (user['role'] ?? data['role'] ?? '').toString().toLowerCase();
-    final role = roleValue.contains('admin')
-        ? UserRole.admin
-        : roleValue.contains('agent')
-            ? UserRole.agent
-            : (LoginId.roleOf(username) ?? UserRole.conductor);
+    final role = roleValue.contains('agent')
+        ? UserRole.agent
+        : (LoginId.roleOf(username) ?? UserRole.conductor);
 
     final names = (user['name'] ?? user['fullName'] ?? '').toString().trim();
     var first = (user['firstName'] ?? '').toString().trim();
@@ -125,7 +123,10 @@ class AppState extends ChangeNotifier {
       AccountStore.saveUsername(username);
     }
     notifyListeners();
-    refreshLedger();
+    // Load ledger after navigation settles — avoids login-screen flicker.
+    Future<void>.delayed(const Duration(milliseconds: 350), () {
+      refreshLedger();
+    });
   }
 
   Future<void> loadSavedAccount() async {
@@ -157,18 +158,27 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
   }
 
+  void setWalletBalance(int value) {
+    walletBalance = value < 0 ? 0 : value;
+    notifyListeners();
+  }
+
   void applyLedger(Map<String, dynamic> data) {
     final rows = data['transactions'];
+    final withdrawalRows = data['withdrawals'];
     final collected = data['collected'];
+    final nauli = _parseNauli(rows);
+    final withdrawals = _parseWithdrawals(withdrawalRows);
     transactions
-      ..removeWhere((tx) => tx.type == TransactionType.nauli)
-      ..insertAll(0, _parseNauli(rows));
+      ..clear()
+      ..addAll([...nauli, ...withdrawals])
+      ..sort((a, b) => b.time.compareTo(a.time));
     if (collected is num) {
       walletBalance = collected.toInt();
     } else {
-      walletBalance = transactions
-          .where((tx) => tx.type == TransactionType.nauli)
-          .fold(0, (sum, tx) => sum + tx.amount);
+      walletBalance = nauli.fold(0, (sum, tx) => sum + tx.amount) -
+          withdrawals.fold(0, (sum, tx) => sum + tx.amount);
+      if (walletBalance < 0) walletBalance = 0;
     }
     notifyListeners();
   }
@@ -191,6 +201,26 @@ class AppState extends ChangeNotifier {
         time: createdAt.toLocal(),
         reference: (map['reference'] ?? '').toString(),
         detail: (map['card'] ?? '').toString(),
+      );
+    }).toList();
+  }
+
+  List<Transaction> _parseWithdrawals(Object? rows) {
+    if (rows is! List) return const [];
+    return rows.map((row) {
+      final map = row is Map ? Map<String, dynamic>.from(row) : <String, dynamic>{};
+      final createdAt = DateTime.tryParse('${map['createdAt'] ?? ''}') ??
+          DateTime.now();
+      final agent = (map['agent'] ?? '').toString().trim();
+      final till = (map['tillNumber'] ?? '').toString().trim();
+      final detail = till.isEmpty ? 'Wakala' : till;
+      return Transaction(
+        passengerName: agent.isEmpty ? 'Wakala' : agent,
+        amount: (map['amount'] as num?)?.toInt() ?? 0,
+        time: createdAt.toLocal(),
+        type: TransactionType.toaPesa,
+        reference: (map['reference'] ?? '').toString(),
+        detail: detail,
       );
     }).toList();
   }

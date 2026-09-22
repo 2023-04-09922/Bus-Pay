@@ -63,18 +63,6 @@ class S {
   String get msaada => isSw ? 'Msaada' : 'Help';
   String get jihudumie => isSw ? 'Jihudumie' : 'Self service';
   String get loginAsAgent => isSw ? 'Ingia kama wakala' : 'Sign in as agent';
-  String get adminLogin => isSw ? 'Ingia kama admin' : 'Sign in as admin';
-  String get adminLoginHint => isSw
-      ? 'Admin pekee anaweza kuunda akaunti ya wakala.'
-      : 'Only Admin can create a Wakala account.';
-  String get createWakala => isSw ? 'Unda wakala' : 'Create Wakala';
-  String get createWakalaHint => isSw
-      ? 'Weka taarifa za wakala kisha mpe nenosiri lake.'
-      : 'Enter Wakala details and give him the password.';
-  String get wakalaCreated => isSw ? 'Wakala ameundwa' : 'Wakala created';
-  String get giveWakalaPassword => isSw
-      ? 'Mpe wakala nenosiri hili ili aingie.'
-      : 'Give the Wakala this password so he can sign in.';
   String get agentLoginTitle => isSw ? 'Ingia kama wakala' : 'Agent login';
   String get agentLoginHint =>
       isSw ? 'Weka barua pepe na nenosiri.' : 'Enter email and password.';
@@ -163,6 +151,9 @@ class S {
   String get toaPesa => isSw ? 'Toa pesa' : 'Withdraw';
   String get tumaPesa => isSw ? 'Tuma pesa' : 'Send money';
   String get settings => isSw ? 'Mipangilio' : 'Settings';
+  String get wakalaSettingsHint => isSw
+      ? 'Lugha na nenosiri'
+      : 'Language and password';
   String get profile => isSw ? 'Wasifu' : 'Profile';
   String get wallet => isSw ? 'Pochi' : 'Wallet';
   String get nauli => isSw ? 'NAULI' : 'FARE';
@@ -179,7 +170,23 @@ class S {
   String get cancel => isSw ? 'Ghairi' : 'Cancel';
   String get noTx =>
       isSw ? 'Hakuna miamala bado' : 'No transactions yet';
+  String get paymentsTab => isSw ? 'Malipo' : 'Payments';
+  String get withdrawalsTab => isSw ? 'Zilizotolewa' : 'Withdrawals';
+  String get noWithdrawals =>
+      isSw ? 'Hakuna fedha zilizotolewa bado' : 'No withdrawals yet';
   String get agentCode => isSw ? 'Namba ya wakala' : 'Agent number';
+  String get wakalaTill => isSw ? 'TILL ya wakala' : 'Wakala TILL';
+  String get toaPesaHint =>
+      isSw ? 'Toa pesa kupitia wakala' : 'Withdraw through an agent';
+  String get toaPesaTillHint => isSw
+      ? 'Weka namba ya TILL ya wakala, kisha endelea.'
+      : 'Enter the wakala TILL number, then continue.';
+  String get enterWithdrawAmount =>
+      isSw ? 'Weka kiasi cha kutoa' : 'Enter amount to withdraw';
+  String get withdrawOk =>
+      isSw ? 'Pesa imetolewa' : 'Withdrawal successful';
+  String get reference => isSw ? 'Kumbukumbu' : 'Reference';
+  String get back => isSw ? 'Rudi' : 'Back';
   String get amount => isSw ? 'Kiasi' : 'Amount';
   String get withdraw => isSw ? 'TOA PESA' : 'WITHDRAW';
   String get send => isSw ? 'TUMA' : 'SEND';
@@ -264,10 +271,32 @@ class S {
   String get tryAgain => isSw ? 'Jaribu tena' : 'Try again';
   String get nfcUid => 'NFC UID';
   String get scanUid => isSw ? 'Soma UID' : 'Scan UID';
+  String get scanCard => isSw ? 'Soma kadi' : 'Scan card';
+  String get scanCardFirst => isSw
+      ? 'Soma kadi kwanza ili UID na namba ya kadi zionekane'
+      : 'Scan the card first so UID and card number appear';
+  String get passengerDetailsStep => isSw
+      ? 'Taarifa za abiria'
+      : 'Passenger details';
+  String get scanCardStep => isSw ? 'Soma kadi (NFC)' : 'Scan card (NFC)';
+  String get scanCardStepHint => isSw
+      ? 'Leta kadi karibu. NFC UID na namba ya kadi (tarakimu 12) zitaonekana.'
+      : 'Hold the card near the phone. NFC UID and 12-digit card number appear automatically.';
+  String get initialTopUpStep =>
+      isSw ? 'Weka salio la kwanza' : 'Enter initial top-up';
+  String get topUpScanHint => isSw
+      ? 'Leta kadi karibu. Taarifa za mmiliki wa kadi zitaonekana moja kwa moja.'
+      : 'Hold the card near the phone. Owner details appear automatically.';
+  String get enterTopUpAmount =>
+      isSw ? 'Weka kiasi cha kuongeza' : 'Enter top-up amount';
+  String get cardAlreadyRegistered => isSw
+      ? 'Kadi hii tayari imesajiliwa'
+      : 'This card is already registered';
+  String get smsSentHint => isSw
+      ? 'SMS imetumwa kwa simu ya abiria.'
+      : 'SMS sent to the passenger phone.';
+  String get digits => isSw ? 'tarakimu' : 'digits';
   String get done => isSw ? 'Sawa' : 'Done';
-  String get enterCardToPay => isSw
-      ? 'Weka namba ya kadi iliyosajiliwa'
-      : 'Enter a registered card number';
   String get withdrawn => isSw ? 'Imetolewa' : 'Withdrawn';
   String get sent => isSw ? 'Imetumwa' : 'Sent';
   String tzs(int n) => 'TZS ${_format(n)}';

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/navigation/app_page_route.dart';
 import '../../../l10n/strings.dart';
 import '../../../screens/login_screen.dart';
 import '../../../screens/msaada_screen.dart';
 import '../../../screens/profile_screen.dart';
 import '../../../screens/sajili_card_screen.dart';
 import '../../../state/app_state.dart';
+import '../../../widgets/app_logo.dart';
+import 'agent_settings_page.dart';
 import 'renew_card_page.dart';
 import 'top_up_card_page.dart';
 import 'widgets/floating_action_card.dart';
@@ -20,11 +23,19 @@ class AgentHomePage extends StatelessWidget {
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEEF3F8),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(s.appName),
+        title: Row(
+          children: [
+            const AppLogo(size: 32, radius: 8),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                s.appName,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: s.logout,
@@ -32,7 +43,7 @@ class AgentHomePage extends StatelessWidget {
               app.logout();
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                AppPageRoute(builder: (_) => const LoginScreen()),
                 (route) => false,
               );
             },
@@ -41,25 +52,19 @@ class AgentHomePage extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(26),
               gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [primary, primary.withValues(alpha: 0.72)],
+                colors: [
+                  primary,
+                  primary.withValues(alpha: 0.75),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: primary.withValues(alpha: 0.35),
-                  blurRadius: 28,
-                  offset: const Offset(0, 14),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(18),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,13 +80,12 @@ class AgentHomePage extends StatelessWidget {
                     color: Colors.white,
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 1.1,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
                   s.wakalaDesk,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
@@ -89,70 +93,62 @@ class AgentHomePage extends StatelessWidget {
           const SizedBox(height: 22),
           Text(
             s.cardServices,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              color: primary,
+            ),
           ),
           const SizedBox(height: 12),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 14,
-            crossAxisSpacing: 14,
-            childAspectRatio: 1.02,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.05,
             children: [
               FloatingActionCard(
                 icon: Icons.add_card_outlined,
                 label: s.sajiliCard,
                 subtitle: s.sajiliCardHint,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SajiliCardScreen()),
-                ),
+                onTap: () => pushSmooth(context, const SajiliCardScreen()),
               ),
               FloatingActionCard(
                 icon: Icons.autorenew,
                 label: s.renewCard,
                 subtitle: s.renewCardHint,
-                accent: const Color(0xFF2E7D32),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RenewCardPage()),
-                ),
+                onTap: () => pushSmooth(context, const RenewCardPage()),
               ),
               FloatingActionCard(
                 icon: Icons.account_balance_wallet_outlined,
                 label: s.topUpCard,
                 subtitle: s.topUpCardHint,
-                accent: const Color(0xFFEF6C00),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TopUpCardPage()),
-                ),
+                onTap: () => pushSmooth(context, const TopUpCardPage()),
               ),
               FloatingActionCard(
                 icon: Icons.person_outline,
                 label: s.profile,
                 subtitle: s.agent,
-                accent: const Color(0xFF5E35B1),
-                onTap: () => Navigator.push(
+                onTap: () => pushSmooth(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: Text(s.profile)),
-                      body: const ProfileScreen(),
-                    ),
+                  Scaffold(
+                    appBar: AppBar(title: Text(s.profile)),
+                    body: const ProfileScreen(),
                   ),
                 ),
+              ),
+              FloatingActionCard(
+                icon: Icons.settings_outlined,
+                label: s.settings,
+                subtitle: s.wakalaSettingsHint,
+                onTap: () => pushSmooth(context, const AgentSettingsPage()),
               ),
               FloatingActionCard(
                 icon: Icons.help_outline,
                 label: s.msaada,
                 subtitle: s.howToRegister,
-                accent: const Color(0xFF00838F),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MsaadaScreen()),
-                ),
+                onTap: () => pushSmooth(context, const MsaadaScreen()),
               ),
             ],
           ),

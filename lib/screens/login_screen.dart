@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../auth/password_rule.dart';
+import '../core/navigation/app_page_route.dart';
 import '../home_shell.dart';
 import '../l10n/strings.dart';
 import '../services/api_service.dart';
@@ -9,7 +10,6 @@ import '../widgets/app_logo.dart';
 import '../widgets/pin_boxes.dart';
 import '../widgets/pin_error_shake.dart';
 import 'agent_login_screen.dart';
-import 'admin_login_screen.dart';
 import 'conductor_forgot_pin_screen.dart';
 import 'signup_screen.dart';
 
@@ -48,7 +48,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       busy = true;
       pinOk = false;
+      wrongPin = false;
     });
+    // Clear any leftover snackbars from earlier attempts.
+    ScaffoldMessenger.of(context).clearSnackBars();
+
     try {
       final response = await ApiService.login(
         username: username,
@@ -56,11 +60,11 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (!mounted) return;
       app.applyRemoteLogin(response);
-      setState(() => pinOk = true);
       if (!mounted) return;
-      Navigator.pushReplacement(
+      // Navigate immediately — no success flash / error flicker on this screen.
+      await Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeShell()),
+        AppPageRoute(builder: (_) => const HomeShell()),
       );
     } catch (e) {
       if (!mounted) return;
@@ -97,6 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(content: Text(message)),
       );
     } finally {
+      // Only reset busy if we are still on this screen (login failed).
       if (mounted) setState(() => busy = false);
     }
   }
@@ -154,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       : () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
+                            AppPageRoute(
                               builder: (_) =>
                                   const ConductorForgotPinScreen(),
                             ),
@@ -197,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       : () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
+                            AppPageRoute(
                               builder: (_) => const SignupScreen(),
                             ),
                           );
@@ -210,29 +215,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       : () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
+                            AppPageRoute(
                               builder: (_) => const AgentLoginScreen(),
                             ),
                           );
                         },
                   child: Text(
                     s.loginAsAgent,
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                ),
-                TextButton(
-                  onPressed: busy
-                      ? null
-                      : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AdminLoginScreen(),
-                            ),
-                          );
-                        },
-                  child: Text(
-                    s.adminLogin,
                     style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                 ),

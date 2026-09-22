@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../auth/agent_email.dart';
 import '../auth/login_id.dart';
-import '../core/constants/app_config.dart';
 import '../core/di/injection.dart';
+import '../core/navigation/app_page_route.dart';
 import '../l10n/strings.dart';
 import '../presentation/agent/agent_home_page.dart';
 import '../services/api_service.dart';
@@ -24,12 +24,6 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
   bool busy = false;
 
   @override
-  void initState() {
-    super.initState();
-    email.text = AppConfig.agentDemoEmail;
-  }
-
-  @override
   void dispose() {
     email.dispose();
     password.dispose();
@@ -47,6 +41,7 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
     }
 
     setState(() => busy = true);
+    ScaffoldMessenger.of(context).clearSnackBars();
     try {
       final data = await Injection.agentLogin(
         email: address,
@@ -61,9 +56,10 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
         );
         return;
       }
-      Navigator.pushReplacement(
+      if (!mounted) return;
+      await Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const AgentHomePage()),
+        AppPageRoute(builder: (_) => const AgentHomePage()),
       );
     } catch (e) {
       if (!mounted) return;
@@ -131,7 +127,7 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
                   : () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
+                        AppPageRoute(
                           builder: (_) => AgentForgotPasswordScreen(
                             email: email.text,
                           ),

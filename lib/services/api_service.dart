@@ -75,39 +75,6 @@ class ApiService {
     });
   }
 
-  static Future<Map<String, dynamic>> adminLogin({
-    required String email,
-    required String password,
-  }) {
-    return _post('/auth/admin/login', {
-      'email': email,
-      'password': password,
-    });
-  }
-
-  static Future<Map<String, dynamic>> createWakala({
-    required String token,
-    required String firstName,
-    required String lastName,
-    required String email,
-    required String phone,
-    required String nida,
-    required String password,
-  }) {
-    return _post(
-      '/auth/admin/wakala',
-      {
-        'firstName': firstName.trim(),
-        'lastName': lastName.trim(),
-        'email': email.trim(),
-        'phone': phone.trim(),
-        'nida': nida.trim(),
-        'password': password,
-      },
-      token: token,
-    );
-  }
-
   static Future<Map<String, dynamic>> forgotAgentPassword({
     required String email,
   }) {
@@ -221,6 +188,40 @@ class ApiService {
     });
   }
 
+  static Future<Map<String, dynamic>> scanCard({
+    required String token,
+    required String nfcUid,
+  }) {
+    return _post(
+      '/platform/cards/scan',
+      {'nfcUid': nfcUid.trim()},
+      token: token,
+    );
+  }
+
+  static Future<Map<String, dynamic>> activateCard({
+    required String token,
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String cardNumber,
+    required String nfcUid,
+    String? nida,
+  }) {
+    return _post(
+      '/platform/cards/activate',
+      {
+        'firstName': firstName.trim(),
+        'lastName': lastName.trim(),
+        'phone': phone.trim(),
+        'cardNumber': cardNumber.trim(),
+        'nfcUid': nfcUid.trim(),
+        if (nida != null && nida.trim().isNotEmpty) 'nida': nida.trim(),
+      },
+      token: token,
+    );
+  }
+
   static Future<Map<String, dynamic>> issueCard({
     required String token,
     required String firstName,
@@ -240,9 +241,22 @@ class ApiService {
         if (nida != null && nida.trim().isNotEmpty) 'nida': nida.trim(),
         if (serialNumber != null && serialNumber.trim().isNotEmpty)
           'serialNumber': serialNumber.trim(),
+        if (serialNumber != null && serialNumber.trim().isNotEmpty)
+          'cardNumber': serialNumber.trim(),
         if (nfcUid != null && nfcUid.trim().isNotEmpty) 'nfcUid': nfcUid.trim(),
         'initialLoad': initialLoad,
       },
+      token: token,
+    );
+  }
+
+  static Future<Map<String, dynamic>> previewTopUpScan({
+    required String token,
+    required String nfcUid,
+  }) {
+    return _post(
+      '/platform/wallets/topup/scan',
+      {'nfcUid': nfcUid.trim()},
       token: token,
     );
   }
@@ -267,8 +281,9 @@ class ApiService {
         'amount': amount,
         'serviceType': serviceType,
         'merchantCode': merchantCode,
-        'serialNumber': ?serialNumber,
-        'nfcUid': ?nfcUid,
+        if (serialNumber != null && serialNumber.trim().isNotEmpty)
+          'serialNumber': serialNumber.trim(),
+        if (nfcUid != null && nfcUid.trim().isNotEmpty) 'nfcUid': nfcUid.trim(),
       },
       token: token,
     );
@@ -333,14 +348,47 @@ class ApiService {
     required String token,
     required int amount,
     String? serialNumber,
+    String? nfcUid,
     String? phone,
+    String? walletAccountNumber,
   }) {
     return _post(
       '/platform/wallets/topup',
       {
         'amount': amount,
-        'serialNumber': ?serialNumber,
-        'phone': ?phone,
+        if (serialNumber != null && serialNumber.trim().isNotEmpty)
+          'serialNumber': serialNumber.trim(),
+        if (nfcUid != null && nfcUid.trim().isNotEmpty) 'nfcUid': nfcUid.trim(),
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+        if (walletAccountNumber != null &&
+            walletAccountNumber.trim().isNotEmpty)
+          'walletAccountNumber': walletAccountNumber.trim(),
+      },
+      token: token,
+    );
+  }
+
+  static Future<Map<String, dynamic>> lookupWakalaTill({
+    required String token,
+    required String tillNumber,
+  }) {
+    return _post(
+      '/platform/agents/till/lookup',
+      {'tillNumber': tillNumber.trim()},
+      token: token,
+    );
+  }
+
+  static Future<Map<String, dynamic>> withdrawToWakala({
+    required String token,
+    required String tillNumber,
+    required int amount,
+  }) {
+    return _post(
+      '/platform/withdrawals',
+      {
+        'tillNumber': tillNumber.trim(),
+        'amount': amount,
       },
       token: token,
     );

@@ -24,6 +24,7 @@ class PaymentSuccessScreen extends StatelessWidget {
     final s = S(AppScope.of(context).language);
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(28),

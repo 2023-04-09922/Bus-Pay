@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/navigation/app_page_route.dart';
 import '../l10n/strings.dart';
 import '../services/api_service.dart';
 import '../state/app_state.dart';
@@ -38,18 +39,21 @@ class _PaymentVerifyScreenState extends State<PaymentVerifyScreen> {
         nfcUid: widget.nfcUid,
       );
       if (!mounted) return;
-      await app.refreshLedger();
-      if (!mounted) return;
-      Navigator.pushReplacement(
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final reference = (result['reference'] ?? '').toString();
+      await Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
+        AppPageRoute(
           builder: (_) => PaymentSuccessScreen(
             amount: widget.amount,
             passengerName: widget.passengerName,
-            reference: (result['reference'] ?? '').toString(),
+            reference: reference,
           ),
         ),
       );
+      Future<void>.delayed(const Duration(milliseconds: 400), () {
+        app.refreshLedger();
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
