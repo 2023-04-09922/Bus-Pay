@@ -227,6 +227,17 @@ class S {
   String get pinChanged =>
       isSw ? 'PIN imebadilishwa' : 'PIN changed successfully';
   String get forgotPin => isSw ? 'Umesahau PIN?' : 'Forgot PIN?';
+  String get haveAccount => isSw ? 'Nina akaunti' : 'I have an account';
+  String get noAccountSignUp =>
+      isSw ? 'Sina akaunti (jisajili)' : 'No account (sign up)';
+  String get accountLoginTitle =>
+      isSw ? 'Ingia na akaunti' : 'Sign in with account';
+  String get accountLoginHint => isSw
+      ? 'Weka namba ya simu uliyosajiliwa na PIN yako.'
+      : 'Enter your registered phone number and PIN.';
+  String get sessionMoved => isSw
+      ? 'Umeingia kwenye simu nyingine. Ingia tena hapa.'
+      : 'Signed in on another phone. Please sign in again.';
   String get forgotPinHint => isSw
       ? 'Weka namba ya simu na NIDA. Tutakutumia namba ya uthibitisho.'
       : 'Enter your phone and NIDA. We will send a verification code.';

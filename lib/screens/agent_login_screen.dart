@@ -4,6 +4,7 @@ import '../auth/agent_email.dart';
 import '../auth/login_id.dart';
 import '../core/di/injection.dart';
 import '../core/navigation/app_page_route.dart';
+import '../core/navigation/auth_reveal.dart';
 import '../l10n/strings.dart';
 import '../presentation/agent/agent_home_page.dart';
 import '../services/api_service.dart';
@@ -49,17 +50,21 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
       );
       if (!mounted) return;
       final app = AppScope.of(context);
-      app.applyRemoteLogin(data);
+      app.applyRemoteLogin(data, notify: false, scheduleLedger: false);
       if (app.currentRole != UserRole.agent) {
+        app.finishLoginReveal();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(s.incorrectCredentials)),
         );
+        if (mounted) setState(() => busy = false);
         return;
       }
       if (!mounted) return;
-      await Navigator.pushReplacement(
-        context,
-        AppPageRoute(builder: (_) => const AgentHomePage()),
+      await playAuthReveal(
+        context: context,
+        outgoing: _face(interactive: false),
+        incoming: const AgentHomePage(),
+        onSettled: app.finishLoginReveal,
       );
     } catch (e) {
       if (!mounted) return;
@@ -76,15 +81,14 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
-    } finally {
       if (mounted) setState(() => busy = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _face({required bool interactive}) {
     final s = S(AppScope.of(context).language);
     return Scaffold(
+      resizeToAvoidBottomInset: interactive,
       appBar: AppBar(title: Text(s.agentLoginTitle)),
       body: ListView(
         padding: const EdgeInsets.all(24),
@@ -96,55 +100,70 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
           const SizedBox(height: 20),
           TextField(
             controller: email,
-            autofocus: true,
+            autofocus: interactive && !busy,
+            enabled: interactive,
             keyboardType: TextInputType.emailAddress,
             autocorrect: false,
             decoration: InputDecoration(
               labelText: s.email,
               prefixIcon: const Icon(Icons.email_outlined),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
           const SizedBox(height: 14),
           TextField(
             controller: password,
+            enabled: interactive,
             obscureText: obscure,
             decoration: InputDecoration(
               labelText: s.agentPassword,
               prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => obscure = !obscure),
+              suffixIcon: interactive
+                  ? IconButton(
+                      icon: Icon(
+                        obscure ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () => setState(() => obscure = !obscure),
+                    )
+                  : Icon(
+                      obscure ? Icons.visibility : Icons.visibility_off,
+                    ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: busy
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        AppPageRoute(
-                          builder: (_) => AgentForgotPasswordScreen(
-                            email: email.text,
+          if (interactive)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: busy
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          AppPageRoute(
+                            builder: (_) => AgentForgotPasswordScreen(
+                              email: email.text,
+                            ),
                           ),
-                        ),
-                      );
-                    },
-              child: Text(
-                s.forgotPassword,
-                style: const TextStyle(fontSize: 13),
+                        );
+                      },
+                child: Text(
+                  s.forgotPassword,
+                  style: const TextStyle(fontSize: 13),
+                ),
               ),
-            ),
-          ),
+            )
+          else
+            const SizedBox(height: 12),
           const SizedBox(height: 8),
           SizedBox(
             height: 54,
             child: ElevatedButton(
-              onPressed: busy ? null : login,
+              onPressed: interactive && !busy ? login : null,
               child: busy
                   ? const SizedBox(
                       width: 22,
@@ -161,4 +180,7 @@ class _AgentLoginScreenState extends State<AgentLoginScreen> {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) => _face(interactive: true);
 }

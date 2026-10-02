@@ -78,7 +78,11 @@ class AppState extends ChangeNotifier {
   String get displayEmail => currentUser?.email ?? '';
   String get agentTill => currentUser?.tillNumber ?? '0000-0000';
 
-  void applyRemoteLogin(Map<String, dynamic> data) {
+  void applyRemoteLogin(
+    Map<String, dynamic> data, {
+    bool notify = true,
+    bool scheduleLedger = true,
+  }) {
     final rawUser = data['user'];
     final user = rawUser is Map
         ? Map<String, dynamic>.from(rawUser)
@@ -122,9 +126,19 @@ class AppState extends ChangeNotifier {
       hiddenUsername = username;
       AccountStore.saveUsername(username);
     }
-    notifyListeners();
+    if (notify) notifyListeners();
     // Load ledger after navigation settles — avoids login-screen flicker.
-    Future<void>.delayed(const Duration(milliseconds: 350), () {
+    if (scheduleLedger) {
+      Future<void>.delayed(const Duration(milliseconds: 350), () {
+        refreshLedger();
+      });
+    }
+  }
+
+  /// Call after the login reveal finishes so UI rebuilds do not jank the slide.
+  void finishLoginReveal() {
+    notifyListeners();
+    Future<void>.delayed(const Duration(milliseconds: 200), () {
       refreshLedger();
     });
   }

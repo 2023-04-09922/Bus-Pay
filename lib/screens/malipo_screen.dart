@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../core/navigation/app_page_route.dart';
-import '../l10n/strings.dart';
 import '../auth/money_amount.dart';
+import '../core/navigation/app_page_route.dart';
+import '../core/sound/key_click.dart';
+import '../l10n/strings.dart';
 import '../state/app_state.dart';
 import '../widgets/wallet_balance.dart';
 import 'nfc_scanner_screen.dart';
@@ -17,17 +18,29 @@ class MalipoScreen extends StatefulWidget {
 class _MalipoScreenState extends State<MalipoScreen> {
   String fare = '';
 
+  @override
+  void initState() {
+    super.initState();
+    KeyClick.warmUp();
+  }
+
   void addNumber(String number) {
     if (fare.length >= 7) return;
+    KeyClick.play();
     setState(() => fare += number);
   }
 
   void deleteNumber() {
     if (fare.isEmpty) return;
+    KeyClick.play();
     setState(() => fare = fare.substring(0, fare.length - 1));
   }
 
-  void clearFare() => setState(() => fare = '');
+  void clearFare() {
+    if (fare.isEmpty) return;
+    KeyClick.play();
+    setState(() => fare = '');
+  }
 
   Future<void> lipia() async {
     final s = S(AppScope.of(context).language);

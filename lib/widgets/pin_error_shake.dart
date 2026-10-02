@@ -61,31 +61,29 @@ class _PinErrorShakeState extends State<PinErrorShake>
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.visible) {
-      return const SizedBox(height: 24);
-    }
-
     return SizedBox(
-      height: 24,
-      child: AnimatedBuilder(
-        animation: _shake,
-        builder: (context, child) {
-          final dx = math.sin(_shake.value * math.pi * 6) * 12;
-          return Transform.translate(
-            offset: Offset(dx, 0),
-            child: child,
-          );
-        },
-        child: Text(
-          widget.message,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.error,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
+      height: widget.visible ? 22 : 0,
+      child: widget.visible
+          ? AnimatedBuilder(
+              animation: _shake,
+              builder: (context, child) {
+                final dx = math.sin(_shake.value * math.pi * 6) * 12;
+                return Transform.translate(
+                  offset: Offset(dx, 0),
+                  child: child,
+                );
+              },
+              child: Text(
+                widget.message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            )
+          : const SizedBox.shrink(),
     );
   }
 }

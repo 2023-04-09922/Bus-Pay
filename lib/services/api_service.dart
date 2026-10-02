@@ -56,13 +56,16 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> login({
-    required String username,
     required String pin,
+    String? username,
+    String? phone,
   }) {
-    return _post('/auth/login', {
-      'username': username,
-      'pin': pin,
-    });
+    final body = <String, dynamic>{'pin': pin};
+    final u = username?.trim() ?? '';
+    final p = phone?.trim() ?? '';
+    if (u.isNotEmpty) body['username'] = u;
+    if (p.isNotEmpty) body['phone'] = p;
+    return _post('/auth/login', body);
   }
 
   static Future<Map<String, dynamic>> agentLogin({
@@ -436,7 +439,7 @@ class ApiService {
     final response = await _send(
       (base) => _client.get(Uri.parse('$base$path'), headers: headers),
     );
-    return _decode(response);
+    return _decode(response, authorized: token != null && token.isNotEmpty);
   }
 
   static Future<Map<String, dynamic>> _post(
@@ -458,10 +461,16 @@ class ApiService {
         body: jsonEncode(body),
       ),
     );
-    return _decode(response);
+    return _decode(response, authorized: token != null && token.isNotEmpty);
   }
 
-  static Map<String, dynamic> _decode(http.Response response) {
+  /// Called when an authenticated request gets 401 (e.g. signed in elsewhere).
+  static void Function()? onSessionExpired;
+
+  static Map<String, dynamic> _decode(
+    http.Response response, {
+    bool authorized = false,
+  }) {
     Map<String, dynamic> data = {};
     try {
       if (response.body.isNotEmpty) {
@@ -474,6 +483,10 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
+    }
+
+    if (authorized && response.statusCode == 401) {
+      onSessionExpired?.call();
     }
 
     final message = data['message'];

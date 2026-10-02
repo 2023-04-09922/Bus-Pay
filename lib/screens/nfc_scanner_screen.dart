@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 
 import '../core/navigation/app_page_route.dart';
+import '../core/navigation/auth_reveal.dart';
 import '../l10n/strings.dart';
 import '../nfc/nfc_uid.dart';
 import '../services/api_service.dart';
@@ -64,7 +65,7 @@ class _NfcScannerScreenState extends State<NfcScannerScreen>
     ScaffoldMessenger.of(context).clearSnackBars();
     await Navigator.pushReplacement(
       context,
-      AppPageRoute(
+      SoftFadeRoute(
         builder: (_) => PaymentSuccessScreen(
           amount: widget.amount,
           passengerName: passengerName,

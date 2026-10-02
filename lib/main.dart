@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/di/injection.dart';
+import 'core/navigation/app_page_route.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'state/app_state.dart';
@@ -13,6 +14,17 @@ Future<void> main() async {
     state.loadSavedAccount(),
     ApiService.warmup(),
   ]);
+
+  ApiService.onSessionExpired = () {
+    state.logout();
+    final nav = DaladalaApp.navigatorKey.currentState;
+    if (nav == null) return;
+    nav.pushAndRemoveUntil(
+      AppPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  };
+
   runApp(AppScope(notifier: state, child: const DaladalaApp()));
 }
 
@@ -88,17 +100,12 @@ class _OpaqueSlideTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final curved = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
-    return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(0.06, 0),
-        end: Offset.zero,
-      ).animate(curved),
+    return authStyleTransition(
+      animation: animation,
+      secondaryAnimation: secondaryAnimation,
       child: child,
+      enterFrom: const Offset(1.0, 0),
+      exitTo: const Offset(-1.0, 0),
     );
   }
 }

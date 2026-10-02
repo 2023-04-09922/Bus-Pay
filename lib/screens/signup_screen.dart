@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../auth/nida_id.dart';
 import '../auth/password_rule.dart';
 import '../auth/tz_phone.dart';
+import '../core/navigation/app_page_route.dart';
 import '../l10n/strings.dart';
 import '../services/api_service.dart';
 import '../state/app_state.dart';
@@ -97,7 +98,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     final ok = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => const FingerprintScanScreen()),
+      AppPageRoute(builder: (_) => const FingerprintScanScreen()),
     );
     if (!mounted || ok != true) return;
     setState(() => step = 1);

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/navigation/app_page_route.dart';
+import '../core/navigation/auth_reveal.dart';
 import '../l10n/strings.dart';
 import '../services/api_service.dart';
 import '../state/app_state.dart';
@@ -43,7 +43,7 @@ class _PaymentVerifyScreenState extends State<PaymentVerifyScreen> {
       final reference = (result['reference'] ?? '').toString();
       await Navigator.pushReplacement(
         context,
-        AppPageRoute(
+        SoftFadeRoute(
           builder: (_) => PaymentSuccessScreen(
             amount: widget.amount,
             passengerName: widget.passengerName,
